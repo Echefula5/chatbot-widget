@@ -86,7 +86,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
     // Resize container to full widget size
     notifyParent("WIDGET_RESIZE", { width: 400, height: 600 });
   };
-
+  console.log("test");
   const handleClose = () => {
     setIsOpen(false);
     setShowRating(true);
