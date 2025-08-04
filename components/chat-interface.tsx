@@ -10,11 +10,11 @@ import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { sendUserMessage } from "@/graphql/mutations";
 import { onCreateMessage } from "@/graphql/subscriptions";
-import { getConversation } from "@/graphql/queries";
+import { getConversation, listMessages } from "@/graphql/queries";
 import { useChatDispatch } from "./context";
 
 interface Message {
-  id?: any; // Optional
+  id?: any;
   content: string;
   timestamp: String;
   newConversation: boolean;
@@ -45,6 +45,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
   const [expandedCitation, setExpandedCitation] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const dispatch = useChatDispatch();
+  const [loading, setLoading] = useState(false);
 
   const client = generateClient();
   Amplify.configure({
@@ -57,11 +58,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       },
     },
   });
-  console.log(
-    process.env.NEXT_PUBLIC_API_URI,
-    process.env.NEXT_PUBLIC_AWS_REGION,
-    process.env.NEXT_PUBLIC_API_KEY
-  );
+
   useEffect(() => {
     // Check for initial query from welcome tab
     const initialQuery = sessionStorage.getItem("initialQuery");
@@ -75,11 +72,11 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
   }, []);
 
   useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive
+    // Auto-scroll to bottom when new messages arrive or typing state changes
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   const loadChatHistory = async () => {
     try {
@@ -92,45 +89,15 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       console.error("Failed to load chat history:", error);
     }
   };
-  // const handleSendMessage = async () => {
-  //   const text = messageText || input.trim();
-  //   if (!text) return;
-  //   setSending(true);
-  //   setModalOpened(true); // Open modal when processing starts
 
-  //   const input = {
-  //     newConversation: !selectedChat?.id,
-  //     conversationId: selectedChat?.id || undefined,
-  //     userId: capitalizedUserId,
-  //     instructions: '{ "randomize_factor": "high" }',
-  //     content: JSON.stringify({ query: message }),
-  //     timestamp: new Date().toISOString(),
-  //   };
-  //   console.log(input);
-  //   try {
-  //     const data = await client.graphql({
-  //       query: sendUserMessage,
-  //       variables: { input },
-  //     });
-  //     console.log(data);
-  //     if (data?.data?.sendUserMessage) {
-  //       if (selectedChat?.id === undefined) {
-  //         dispatch({ type: "SENT_NEW_MESSAGE", payload: true });
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error("Error sending message:", error);
-  //   } finally {
-  //     setSending(false);
-  //     setModalOpened(false); // Close modal when done
-  //     setMessage("");
-  //   }
-  // };
-  console.log("test");
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
-    if (!text) return;
+    if (!text || sending) return;
 
+    setSending(true);
+    setInput(""); // Clear input immediately for better UX
+
+    // Create user message and add it to the messages array immediately
     const userMessage: Message = {
       newConversation: conversationId === null ? true : false,
       conversationId: conversationId,
@@ -140,21 +107,27 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       timestamp: new Date().toISOString(),
     };
 
+    // Add user message to UI immediately
+    setMessages((prev) => [...prev, userMessage]);
+
+    // Show typing animation after a brief delay for better UX
+    setTimeout(() => {
+      setIsTyping(true);
+    }, 500);
+
     try {
       const data = await client.graphql({
         query: sendUserMessage,
         variables: { input: userMessage },
       });
-      setInput("");
 
-      console.log(data);
-      // if (data?.data?.sendUserMessage) {
-      //   if (selectedChat?.id === undefined) {
-      //     dispatch({ type: "SENT_NEW_MESSAGE", payload: true });
-      //   }
-      // }
+      console.log("Message sent successfully:", data);
     } catch (error) {
       console.error("Error sending message:", error);
+      // Hide typing animation on error
+      setIsTyping(false);
+      // Optionally show error message to user
+      // You might want to add error handling UI here
     } finally {
       setSending(false);
     }
@@ -183,16 +156,23 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
   useEffect(() => {
     const createSub = client.graphql({ query: onCreateMessage }).subscribe({
       next: async ({ data }) => {
-        console.log(data);
-        setConversationid(data?.onCreateMessage?.conversationId);
-        setMessages((prevMessages) => {
-          const exists = prevMessages.some(
-            (msg) => msg?.id === data.onCreateMessage.id
-          );
-          if (exists) return prevMessages;
-          return [...prevMessages, data.onCreateMessage];
-        });
+        console.log("Received message:", data);
+
+        // Hide typing animation when we receive a bot response
         if (data?.onCreateMessage?.isBot) {
+          setIsTyping(false);
+        }
+
+        setConversationid(data?.onCreateMessage?.conversationId);
+
+        if (data?.onCreateMessage?.isBot) {
+          setMessages((prevMessages) => {
+            const exists = prevMessages.some(
+              (msg) => msg?.id === data.onCreateMessage.id
+            );
+            if (exists) return prevMessages;
+            return [...prevMessages, data.onCreateMessage];
+          });
           const conversationId = data?.onCreateMessage?.conversationId;
           if (!conversationId) {
             console.warn("No conversationId found in the message");
@@ -209,17 +189,20 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
               type: "SET_SELECTED_CHAT",
               payload: conversationData?.data?.getConversation,
             });
-            // setNewMessageId(data.onCreateMessage.id);
           } catch (error) {
             console.error("Error fetching conversation:", error);
           }
         }
       },
-      error: (error: any) => console.warn(error),
+      error: (error: any) => {
+        console.warn("Subscription error:", error);
+        setIsTyping(false); // Hide typing animation on error
+      },
     });
 
     return () => createSub.unsubscribe();
   }, []);
+
   const renderMessageContent = (message: Message) => {
     let contentText = "";
 
@@ -230,18 +213,17 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
         : parsedContent.query;
     } catch (e) {
       console.error("Failed to parse content:", message.content);
-      contentText = message.content; // fallback
+      contentText = message.content;
     }
 
     let citations: { id: string }[] = [];
 
     try {
       const parsedCitations = JSON.parse(message.citations || "[]");
-
       if (Array.isArray(parsedCitations)) {
         citations = parsedCitations;
       } else {
-        citations = []; // fallback if it's an object like {}
+        citations = [];
       }
     } catch (e) {
       console.error("Failed to parse citations:", message.citations);
@@ -251,7 +233,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
     if (!message.isBot) {
       return <div className="whitespace-pre-wrap">{contentText}</div>;
     }
-    console.log(citations);
+
     // Process citation references like [1], [2]
     citations?.forEach((citation, index) => {
       const citationNumber = index + 1;
@@ -278,6 +260,42 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       />
     );
   };
+  const getAllListMessages = async () => {
+    setLoading(true);
+
+    const variables = {
+      filter: {
+        userId: { eq: `user_${sessionId}` },
+      },
+    };
+
+    const data = await client.graphql({
+      query: listMessages,
+      variables,
+    });
+    console.log(data);
+    if (data?.data) {
+      setLoading(false);
+    }
+    setMessages(data?.data?.listMessages?.items);
+  };
+  const mes = messages.sort((a, b) => {
+    const timeDiff = new Date(a.timestamp) - new Date(b.timestamp);
+    if (timeDiff !== 0) return timeDiff;
+
+    if (a.isBot === b.isBot) {
+      return 0;
+    }
+
+    // Assume user speaks first, bot responds after
+    return a.isBot ? 1 : -1;
+  });
+
+  useEffect(() => {
+    if (sessionId) {
+      getAllListMessages();
+    }
+  }, [sessionId]);
   const parseCitations = (citations: string): any[] => {
     try {
       const parsed = JSON.parse(citations || "[]");
@@ -287,17 +305,22 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       return [];
     }
   };
-  console.log(messages);
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   return (
-    <div className="flex flex-col ">
+    <div className="flex flex-col">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="flex flex-col max-h-[360px] h-[380px] border rounded overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4">
-            {" "}
             <div className="space-y-4">
-              {messages.map((message) => (
-                <div key={message.id}>
+              {messages.map((message, index) => (
+                <div key={index}>
                   <div
                     className={`flex ${
                       !message.isBot ? "justify-end" : "justify-start"
@@ -375,25 +398,29 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                 </div>
               ))}
 
+              {/* Typing animation */}
               {isTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg p-3">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.1s" }}
-                      ></div>
-                      <div
-                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                        style={{ animationDelay: "0.2s" }}
-                      ></div>
+                  <div className="bg-blue-600 text-white rounded-lg p-3 max-w-[80%]">
+                    <div className="flex space-x-1 items-center">
+                      <span className="text-sm mr-2">AI is typing</span>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                        <div
+                          className="w-2 h-2 bg-white rounded-full animate-bounce"
+                          style={{ animationDelay: "0.1s" }}
+                        ></div>
+                        <div
+                          className="w-2 h-2 bg-white rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
             </div>
-          </div>{" "}
+          </div>
         </div>
       </ScrollArea>
 
@@ -404,12 +431,13 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
             placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-            disabled={isTyping}
+            onKeyPress={handleKeyPress}
+            disabled={sending}
+            className="flex-1"
           />
           <Button
             onClick={() => handleSendMessage()}
-            disabled={isTyping || !input.trim()}
+            disabled={sending || !input.trim()}
             size="sm"
           >
             <Send className="w-4 h-4" />
