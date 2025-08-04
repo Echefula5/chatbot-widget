@@ -10,8 +10,12 @@ import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { sendUserMessage } from "@/graphql/mutations";
 import { onCreateMessage } from "@/graphql/subscriptions";
-import { getConversation, listMessages } from "@/graphql/queries";
+import { getConversation, listFeedback, listMessages } from "@/graphql/queries";
 import { useChatDispatch } from "./context";
+import {
+  handleupdateWidgetFeedback,
+  handleWidgetFeedback,
+} from "./actions/assistant";
 
 interface Message {
   id?: any;
@@ -46,7 +50,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const dispatch = useChatDispatch();
   const [loading, setLoading] = useState(false);
-
+  const [feedback, setFeedback] = useState([]);
   const client = generateClient();
   Amplify.configure({
     API: {
@@ -60,35 +64,11 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
   });
 
   useEffect(() => {
-    // Check for initial query from welcome tab
-    const initialQuery = sessionStorage.getItem("initialQuery");
-    if (initialQuery) {
-      sessionStorage.removeItem("initialQuery");
-      handleSendMessage(initialQuery);
-    }
-
-    // Load chat history
-    loadChatHistory();
-  }, []);
-
-  useEffect(() => {
     // Auto-scroll to bottom when new messages arrive or typing state changes
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
-
-  const loadChatHistory = async () => {
-    try {
-      const response = await fetch(`/api/chat/history?sessionId=${sessionId}`);
-      if (response.ok) {
-        const history = await response.json();
-        setMessages(history);
-      }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-    }
-  };
 
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
@@ -132,27 +112,79 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       setSending(false);
     }
   };
+  const getAllFeedbacks = async () => {
+    try {
+      const userId = `user_${sessionId}`;
+      const data = await client.graphql({
+        query: listFeedback,
+        variables: {
+          filter: {
+            userId: { eq: userId },
+          },
+          limit: 100, // optional: adjust limit as needed
+        },
+      });
+
+      const feedbackItems = (data?.data?.listFeedback?.items ?? []).filter(
+        Boolean
+      );
+      setFeedback(feedbackItems);
+      console.log(feedbackItems);
+      return feedbackItems;
+    } catch (error) {
+      console.error("Error fetching feedbacks:", error);
+      return [];
+    }
+  };
 
   const handleFeedback = async (
     messageId: string,
     feedback: "positive" | "negative"
   ) => {
     try {
-      await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messageId,
-          sessionId,
-          feedback,
-          timestamp: new Date().toISOString(),
-        }),
-      });
+      const likedValue = feedback === "positive" ? true : false;
+      const userId = `user_${sessionId}`;
+      console.log(messageId, userId, likedValue, conversationId);
+
+      const response = await handleWidgetFeedback(
+        messageId,
+        userId,
+        likedValue,
+        conversationId
+      );
+      getAllFeedbacks();
+      console.log(response);
     } catch (error) {
       console.error("Failed to submit feedback:", error);
     }
   };
+  const handleupdateFeedbackService = async (
+    feedbackId: string,
+    feedback: "positive" | "negative"
+  ) => {
+    try {
+      let likedValue: boolean | null;
 
+      if (feedback === "positive") {
+        likedValue = true;
+      } else if (feedback === "negative") {
+        likedValue = false;
+      } else {
+        likedValue = null;
+      }
+      const userId = `user_${sessionId}`;
+
+      const response = await handleupdateWidgetFeedback(
+        feedbackId,
+        userId,
+        likedValue
+      );
+      getAllFeedbacks();
+      console.log(response);
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+    }
+  };
   useEffect(() => {
     const createSub = client.graphql({ query: onCreateMessage }).subscribe({
       next: async ({ data }) => {
@@ -273,9 +305,10 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
       query: listMessages,
       variables,
     });
-    console.log(data);
+
     if (data?.data) {
       setLoading(false);
+      setConversationid(data?.data?.listMessages?.items[0]?.conversationId);
     }
     setMessages(data?.data?.listMessages?.items);
   };
@@ -294,6 +327,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
   useEffect(() => {
     if (sessionId) {
       getAllListMessages();
+      getAllFeedbacks();
     }
   }, [sessionId]);
   const parseCitations = (citations: string): any[] => {
@@ -380,16 +414,79 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleFeedback(message.id, "positive")}
-                        className="h-6 w-6 p-0"
+                        onClick={() => {
+                          const existing = feedback.find(
+                            (f) => f.messageId === message.id
+                          );
+                          const liked =
+                            feedback.length > 0
+                              ? JSON?.parse(existing?.content).liked
+                              : null;
+                          if (existing) {
+                            if (liked) {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                null
+                              );
+                            } else {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                "positive"
+                              );
+                            }
+                          } else {
+                            handleFeedback(message.id, "positive");
+                          }
+                        }}
+                        className={`h-6 w-6 p-0 ${
+                          feedback.find(
+                            (f) =>
+                              f.messageId === message.id &&
+                              JSON.parse(f.content).liked
+                          )
+                            ? "text-green-600"
+                            : ""
+                        }`}
                       >
                         <ThumbsUp className="w-3 h-3" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleFeedback(message.id, "negative")}
-                        className="h-6 w-6 p-0"
+                        onClick={() => {
+                          const existing = feedback?.find(
+                            (f) => f.messageId === message.id
+                          );
+                          const liked =
+                            feedback.length > 0
+                              ? JSON?.parse(existing?.content).liked
+                              : null;
+                          console.log(existing);
+                          if (existing) {
+                            if (!liked) {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                null
+                              );
+                            } else {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                "negative"
+                              );
+                            }
+                          } else {
+                            handleFeedback(message.id, "negative");
+                          }
+                        }}
+                        className={`h-6 w-6 p-0 ${
+                          feedback.find(
+                            (f) =>
+                              f.messageId === message.id &&
+                              !JSON.parse(f.content).liked
+                          )
+                            ? "text-red-600"
+                            : ""
+                        }`}
                       >
                         <ThumbsDown className="w-3 h-3" />
                       </Button>

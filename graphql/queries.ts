@@ -57,6 +57,30 @@ export const getUserProfile = /* GraphQL */ `
     }
   }
 `;
+export const listFeedback = /* GraphQL */ `
+  query ListFeedback(
+    $filter: TableFeedbackFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    listFeedback(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        feedbackId
+        userId
+        content
+        conversationId
+        createdAt
+        messageId
+        modelId
+        type
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
+
 export const batchGetInsights = /* GraphQL */ `
   query BatchGetInsights($ids: [ID!]!) {
     batchGetInsights(ids: $ids) {
