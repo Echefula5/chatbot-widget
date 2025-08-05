@@ -26,6 +26,7 @@
     isLoaded: false,
     iframe: null,
     container: null,
+    isOpen: false,
 
     // Initialize the widget
     init: function () {
@@ -87,9 +88,9 @@
     },
 
     // Container styles - positioned in bottom-right corner only
-    getContainerStyles: () => {
+    getContainerStyles: function () {
       const position = config.position || "bottom-right";
-
+      console.log(this.isOpen);
       let positionStyles = "";
       switch (position) {
         case "bottom-left":
@@ -111,11 +112,11 @@
         position: fixed !important;
         z-index: 2147483647 !important;
         ${positionStyles}
-        width: 400px !important;
-        height: 600px !important;
+        width: ${this.isOpen ? "400px" : "100px"} !important;
+        height: ${this.isOpen ? "600px" : "80px"} !important;
         border: none !important;
         margin: 0 !important;
-        padding: 0 !important;
+        padding: 6 !important;
         background: transparent !important;
         overflow: visible !important;
         pointer-events: none !important;
@@ -127,7 +128,7 @@
         width: 100% !important;
         height: 100% !important;
         border: none !important;
-        background: transparent !important;
+        background: transparent !important; 
         pointer-events: auto !important;
         border-radius: 12px !important;
         margin: 0 !important;
@@ -137,11 +138,31 @@
 
     // Handle messages from iframe
     setupMessageHandling: function () {
+      const self = this;
+
       window.addEventListener("message", (event) => {
-        // Verify origin for security
-        const allowedOrigin = config.baseUrl
+        const { type, data } = event.data || {};
+
+        console.log("📨 Received message:", type);
+
+        if (
+          type === "WIDGET_READY" ||
+          type === "WIDGET_OPEN" ||
+          type === "WIDGET_RESIZE"
+        ) {
+          self.isOpen = true;
+          if (self.container) {
+            self.container.style.cssText = self.getContainerStyles();
+          }
+        } else {
+          self.isOpen = false;
+          self.container.style.cssText = self.getContainerStyles();
+        }
+
+        const allowedOrigin = self.config.baseUrl
           .replace(/^https?:\/\//, "")
           .replace(/^/, "https://");
+
         if (
           event.origin !== allowedOrigin &&
           event.origin !== "http://localhost:3000"
@@ -149,31 +170,30 @@
           return;
         }
 
-        const { type, data } = event.data;
-
         switch (type) {
           case "WIDGET_READY":
-            this.onWidgetReady(data);
+            self.onWidgetReady(data);
             break;
           case "WIDGET_RESIZE":
-            this.onWidgetResize(data);
+            self.onWidgetResize(data);
             break;
           case "WIDGET_CLOSE":
-            this.onWidgetClose();
+            self.onWidgetClose();
             break;
           case "WIDGET_OPEN":
-            this.onWidgetOpen();
+            self.onWidgetOpen();
             break;
           case "WIDGET_MINIMIZE":
-            this.onWidgetMinimize();
+            self.onWidgetMinimize();
             break;
           case "TRACK_EVENT":
-            this.trackEvent(data.event, data.properties);
+            self.trackEvent(data.event, data.properties);
             break;
+          default:
+            console.warn("Unknown message type:", type);
         }
       });
     },
-
     // Widget ready callback
     onWidgetReady: (data) => {
       console.log("Perceptive AI Widget: Ready", data);
@@ -193,6 +213,7 @@
 
     // Handle widget close
     onWidgetClose: function () {
+      console.log("tested");
       this.trackEvent("widget_closed");
     },
 
