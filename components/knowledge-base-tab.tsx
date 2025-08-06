@@ -10,10 +10,10 @@ import { Search, ExternalLink, FileText } from "lucide-react";
 import { fetchAllKnowledgeSources } from "./actions/assistant";
 
 interface KnowledgeItem {
-  id: string;
-  title: string;
-  snippet: string;
+  job_id: string;
   url: string;
+  summary: string;
+  key_themes: any;
   category: string;
 }
 
@@ -21,7 +21,7 @@ export function KnowledgeBaseTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [popularArticles, setpopularArticles] = useState([]);
+  const [popularArticles, setpopularArticles] = useState<KnowledgeItem[]>([]);
   const handleSearch = () => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
@@ -32,9 +32,9 @@ export function KnowledgeBaseTab() {
     setIsSearching(true);
 
     const filtered = popularArticles.filter((item) => {
-      const summaryMatch = item.summary?.toLowerCase().includes(query);
-      const urlMatch = item.url?.toLowerCase().includes(query);
-      const keyThemesMatch = item.key_themes?.some((theme) =>
+      const summaryMatch = item?.summary?.toLowerCase().includes(query);
+      const urlMatch = item?.url?.toLowerCase().includes(query);
+      const keyThemesMatch = item?.key_themes?.some((theme: any) =>
         theme.toLowerCase().includes(query)
       );
 

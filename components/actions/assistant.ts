@@ -64,7 +64,11 @@ export async function handleWidgetFeedback(
     return { success: false, error };
   }
 }
-export async function handleupdateWidgetFeedback(feedbackId, userId, liked) {
+export async function handleupdateWidgetFeedback(
+  feedbackId: any,
+  userId: any,
+  liked: string
+) {
   const hasFeedback = liked === true || liked === false;
 
   if (!hasFeedback) {
