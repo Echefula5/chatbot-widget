@@ -6,6 +6,7 @@ import {
   PutItemCommand,
   UpdateItemCommand,
   DeleteItemCommand,
+  QueryCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { v4 as uuidv4 } from "uuid";
@@ -97,4 +98,59 @@ export async function handleupdateWidgetFeedback(feedbackId, userId, liked) {
   );
 
   return { success: true };
+}
+export async function fetchAllKnowledgeSources(
+  page: number,
+  limit: number,
+  lastEvaluatedKey?: any
+) {
+  let currentPage = 1;
+  let currentLastKey = lastEvaluatedKey;
+
+  while (currentPage < page) {
+    const response = await client.send(
+      new QueryCommand({
+        TableName: "scraping-jobs",
+        Limit: limit,
+        ExclusiveStartKey: currentLastKey,
+        IndexName: "app-created_at-index",
+        KeyConditionExpression: "#app = :val",
+        ExpressionAttributeNames: {
+          "#app": "app",
+        },
+        ExpressionAttributeValues: {
+          ":val": { S: "hbx" },
+        },
+      })
+    );
+
+    currentLastKey = response.LastEvaluatedKey;
+    if (!currentLastKey) break; // No more pages
+    currentPage++;
+  }
+
+  const result = await client.send(
+    new QueryCommand({
+      TableName: "scraping-jobs",
+      IndexName: "app-created_at-index",
+      KeyConditionExpression: "#app = :val",
+      FilterExpression: "#status = :statusVal",
+      ExpressionAttributeNames: {
+        "#app": "app",
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":val": { S: "hbx" },
+        ":statusVal": { S: "COMPLETED" },
+      },
+      ExclusiveStartKey: currentLastKey,
+      ScanIndexForward: false,
+      Limit: limit,
+    })
+  );
+
+  return {
+    items: result.Items?.map((item) => unmarshall(item)) || [],
+    lastEvaluatedKey: result.LastEvaluatedKey || null,
+  };
 }

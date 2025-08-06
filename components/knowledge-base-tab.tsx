@@ -1,72 +1,61 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Search, ExternalLink, FileText } from "lucide-react"
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Search, ExternalLink, FileText } from "lucide-react";
+import { fetchAllKnowledgeSources } from "./actions/assistant";
 
 interface KnowledgeItem {
-  id: string
-  title: string
-  snippet: string
-  url: string
-  category: string
+  id: string;
+  title: string;
+  snippet: string;
+  url: string;
+  category: string;
 }
 
 export function KnowledgeBaseTab() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return
-
-    setIsSearching(true)
-    try {
-      const response = await fetch("/api/knowledge/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery }),
-      })
-
-      if (response.ok) {
-        const results = await response.json()
-        setSearchResults(results)
-      }
-    } catch (error) {
-      console.error("Search failed:", error)
-    } finally {
-      setIsSearching(false)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [popularArticles, setpopularArticles] = useState([]);
+  const handleSearch = () => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      setSearchResults([]);
+      return;
     }
-  }
 
-  const popularArticles = [
-    {
-      id: "1",
-      title: "Understanding Special Enrollment Periods",
-      snippet: "Learn about qualifying life events that allow you to enroll outside the open enrollment period.",
-      url: "https://dchbx.gov/sep",
-      category: "Enrollment",
-    },
-    {
-      id: "2",
-      title: "Comparing Health Insurance Plans",
-      snippet: "A comprehensive guide to understanding different plan types and choosing the right coverage.",
-      url: "https://dchbx.gov/plans",
-      category: "Plans",
-    },
-    {
-      id: "3",
-      title: "Premium Tax Credits and Subsidies",
-      snippet: "How to qualify for and calculate premium tax credits to reduce your monthly costs.",
-      url: "https://dchbx.gov/subsidies",
-      category: "Financial Assistance",
-    },
-  ]
+    setIsSearching(true);
 
+    const filtered = popularArticles.filter((item) => {
+      const summaryMatch = item.summary?.toLowerCase().includes(query);
+      const urlMatch = item.url?.toLowerCase().includes(query);
+      const keyThemesMatch = item.key_themes?.some((theme) =>
+        theme.toLowerCase().includes(query)
+      );
+
+      return summaryMatch || urlMatch || keyThemesMatch;
+    });
+    console.log(filtered);
+    setSearchResults(filtered);
+    setIsSearching(false);
+  };
+
+  const getAllListofSources = async () => {
+    const res = await fetchAllKnowledgeSources(1 + 1, 101);
+    setpopularArticles(res.items as any);
+    // setKnowledgeSources(res.items as any);
+    // setTotalPages(res.totalPages);
+    console.log(res);
+  };
+
+  useEffect(() => {
+    getAllListofSources();
+  }, []);
   return (
     <div className="p-4 h-full flex flex-col">
       <div className="mb-4">
@@ -81,7 +70,11 @@ export function KnowledgeBaseTab() {
               className="pl-10"
             />
           </div>
-          <Button onClick={handleSearch} disabled={isSearching || !searchQuery.trim()} size="sm">
+          <Button
+            onClick={handleSearch}
+            disabled={isSearching || !searchQuery.trim()}
+            size="sm"
+          >
             {isSearching ? "Searching..." : "Search"}
           </Button>
         </div>
@@ -90,70 +83,108 @@ export function KnowledgeBaseTab() {
       <ScrollArea className="flex-1">
         {searchResults.length > 0 ? (
           <div className="space-y-3">
-            <h3 className="font-medium text-gray-900 text-sm">Search Results</h3>
-            {searchResults.map((item) => (
-              <Card key={item.id} className="cursor-pointer hover:bg-gray-50 transition-colors">
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <h4 className="font-medium text-sm text-gray-900">{item.title}</h4>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-2">{item.snippet}</p>
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="text-xs">
-                          {item.category}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(item.url, "_blank")}
-                          className="text-xs p-1 h-auto"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </Button>
+            <h3 className="font-medium text-gray-900 text-sm">
+              Search Results
+            </h3>
+            {searchResults.map((item) => {
+              const path = item?.url?.split("/").pop(); // "advisory-working-groups"
+
+              // Replace all dashes with spaces
+              const formattedPathName = path?.replace(/-/g, " ").toLowerCase();
+              return (
+                <Card
+                  key={item.job_id}
+                  className="cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <h4 className="font-medium text-sm capitalize text-gray-900">
+                            {formattedPathName}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {item?.summary}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          {item?.key_themes ? (
+                            <Badge variant="secondary" className="text-xs">
+                              {item?.key_themes?.[0]}
+                            </Badge>
+                          ) : (
+                            <div></div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(item.url, "_blank")}
+                            className="text-xs p-1 h-auto"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <div className="space-y-3">
-            <h3 className="font-medium text-gray-900 text-sm">Popular Articles</h3>
-            {popularArticles.map((item) => (
-              <Card key={item.id} className="cursor-pointer hover:bg-gray-50 transition-colors">
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <FileText className="w-4 h-4 text-gray-400" />
-                        <h4 className="font-medium text-sm text-gray-900">{item.title}</h4>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-2">{item.snippet}</p>
-                      <div className="flex items-center justify-between">
-                        <Badge variant="secondary" className="text-xs">
-                          {item.category}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => window.open(item.url, "_blank")}
-                          className="text-xs p-1 h-auto"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                        </Button>
+            <h3 className="font-medium text-gray-900 text-sm">
+              Popular Articles
+            </h3>
+            {popularArticles.slice(0, 3).map((item) => {
+              const path = item?.url?.split("/").pop(); // "advisory-working-groups"
+
+              // Replace all dashes with spaces
+              const formattedPathName = path?.replace(/-/g, " ").toLowerCase();
+              return (
+                <Card
+                  key={item.job_id}
+                  className="cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <FileText className="w-4 h-4 text-gray-400" />
+                          <h4 className="font-medium text-sm capitalize text-gray-900">
+                            {formattedPathName}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {item?.summary}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          {item?.key_themes ? (
+                            <Badge variant="secondary" className="text-xs">
+                              {item?.key_themes?.[0]}
+                            </Badge>
+                          ) : (
+                            <div></div>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(item.url, "_blank")}
+                            className="text-xs p-1 h-auto"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </ScrollArea>
     </div>
-  )
+  );
 }
