@@ -5,7 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { Send, ThumbsUp, ThumbsDown, ExternalLink, FileText } from "lucide-react";
+import {
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  ExternalLink,
+  FileText,
+} from "lucide-react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { sendUserMessage } from "@/graphql/mutations";
@@ -97,25 +103,27 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
 
     try {
       console.log(text);
-      const data = await client.graphql({
+      const result = await client.graphql({
         query: askQuestionQuery,
         variables: { query: text },
       });
 
-      console.log("Message sent successfully:", data);
-      if (data.data.askQuestion.success) {
+      if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
 
         const botMessage: Message = {
-          newConversation: conversationId === null ? true : false,
-          conversationId: conversationId,
+          newConversation: conversationId === null,
+          conversationId,
           userId: `user_${sessionId}`,
           instructions: '{ "randomize_factor": "high" }',
-          content: JSON.stringify({ response: data.data.askQuestion.response }),
+          content: JSON.stringify({
+            response: result.data.askQuestion.response,
+          }),
           timestamp: new Date().toISOString(),
-          citations: data.data.askQuestion.metadata.top_sources,
+          citations: result.data.askQuestion.metadata.top_sources,
           isBot: true,
         };
+
         setMessages((prev) => [...prev, botMessage]);
       }
     } catch (error) {
@@ -187,18 +195,6 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
     );
   };
 
-  const mes = messages.sort((a, b) => {
-    const timeDiff = new Date(a.timestamp) - new Date(b.timestamp);
-    if (timeDiff !== 0) return timeDiff;
-
-    if (a.isBot === b.isBot) {
-      return 0;
-    }
-
-    // Assume user speaks first, bot responds after
-    return a.isBot ? 1 : -1;
-  });
-
   const parseCitations = (citations: string): any[] => {
     try {
       const parsed = citations;
@@ -246,9 +242,9 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                       .filter((src) =>
                         src.source.toLowerCase().includes(".pdf")
                       )
-                      .map((citation) => (
+                      .map((citation, index) => (
                         <Card
-                          key={citation.id}
+                          key={index}
                           className="hover:shadow-md transition-shadow cursor-pointer group"
                           onClick={() => window.open(citation.source, "_blank")}
                         >
