@@ -80,6 +80,32 @@ export const listFeedback = /* GraphQL */ `
     }
   }
 `;
+export const askQuestionQuery = /* GraphQL */ `
+  query AskQuestion($query: String!) {
+    askQuestion(query: $query) {
+      success
+      response
+      metadata {
+        intent
+        intent_confidence
+        sentiment
+        complexity_level
+        confidence
+        processing_time_ms
+        session_id
+        timestamp
+        enhancement_applied
+        documents_found
+        top_sources {
+          source
+          score
+        }
+        __typename
+      }
+      __typename
+    }
+  }
+`;
 
 export const batchGetInsights = /* GraphQL */ `
   query BatchGetInsights($ids: [ID!]!) {

@@ -9,6 +9,7 @@ import { WelcomeTab } from "./welcome-tab";
 import { KnowledgeBaseTab } from "./knowledge-base-tab";
 import { RatingDialog } from "./rating-dialog";
 import { ChatProvider } from "./context";
+import { ChatDemoInterface } from "./chat-demo-interface";
 
 interface ChatWidgetProps {
   widgetId: string;
@@ -197,7 +198,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
             </TabsContent>
 
             <TabsContent value="chat" className="h-full m-0">
-              <ChatInterface sessionId={sessionId} widgetId={widgetId} />
+              <ChatDemoInterface sessionId={sessionId} widgetId={widgetId} />
             </TabsContent>
 
             <TabsContent value="knowledge" className="h-full m-0">
