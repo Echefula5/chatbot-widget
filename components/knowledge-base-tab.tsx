@@ -80,111 +80,119 @@ export function KnowledgeBaseTab() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        {searchResults.length > 0 ? (
-          <div className="space-y-3">
-            <h3 className="font-medium text-gray-900 text-sm">
-              Search Results
-            </h3>
-            {searchResults.map((item) => {
-              const path = item?.url?.split("/").pop(); // "advisory-working-groups"
+      {searchResults.length > 0 || popularArticles.length > 0 ? (
+        <ScrollArea className="flex-1 max-h-[350px]">
+          {searchResults.length > 0 ? (
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-900 text-sm">
+                Search Results
+              </h3>
+              {searchResults.map((item) => {
+                const path = item?.url?.split("/").pop(); // "advisory-working-groups"
 
-              // Replace all dashes with spaces
-              const formattedPathName = path?.replace(/-/g, " ").toLowerCase();
-              return (
-                <Card
-                  key={item.job_id}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <FileText className="w-4 h-4 text-gray-400" />
-                          <h4 className="font-medium text-sm capitalize text-gray-900">
-                            {formattedPathName}
-                          </h4>
-                        </div>
-                        <p className="text-xs text-gray-600 mb-2">
-                          {item?.summary}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          {item?.key_themes ? (
-                            <Badge variant="secondary" className="text-xs">
-                              {item?.key_themes?.[0]}
-                            </Badge>
-                          ) : (
-                            <div></div>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(item.url, "_blank")}
-                            className="text-xs p-1 h-auto"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </Button>
+                // Replace all dashes with spaces
+                const formattedPathName = path
+                  ?.replace(/-/g, " ")
+                  .toLowerCase();
+                return (
+                  <Card
+                    key={item.job_id}
+                    className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                            <h4 className="font-medium text-sm capitalize text-gray-900">
+                              {formattedPathName}
+                            </h4>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">
+                            {item?.summary}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            {item?.key_themes ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {item?.key_themes?.[0]}
+                              </Badge>
+                            ) : (
+                              <div></div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(item.url, "_blank")}
+                              className="text-xs p-1 h-auto"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <h3 className="font-medium text-gray-900 text-sm">
-              Popular Articles
-            </h3>
-            {popularArticles.slice(0, 3).map((item) => {
-              const path = item?.url?.split("/").pop(); // "advisory-working-groups"
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <h3 className="font-medium text-gray-900 text-sm">
+                Popular Articles
+              </h3>
+              {popularArticles.slice(0, 3).map((item) => {
+                const path = item?.url?.split("/").pop(); // "advisory-working-groups"
 
-              // Replace all dashes with spaces
-              const formattedPathName = path?.replace(/-/g, " ").toLowerCase();
-              return (
-                <Card
-                  key={item.job_id}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
-                >
-                  <CardContent className="p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <FileText className="w-4 h-4 text-gray-400" />
-                          <h4 className="font-medium text-sm capitalize text-gray-900">
-                            {formattedPathName}
-                          </h4>
-                        </div>
-                        <p className="text-xs text-gray-600 mb-2">
-                          {item?.summary}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          {item?.key_themes ? (
-                            <Badge variant="secondary" className="text-xs">
-                              {item?.key_themes?.[0]}
-                            </Badge>
-                          ) : (
-                            <div></div>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(item.url, "_blank")}
-                            className="text-xs p-1 h-auto"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </Button>
+                // Replace all dashes with spaces
+                const formattedPathName = path
+                  ?.replace(/-/g, " ")
+                  .toLowerCase();
+                return (
+                  <Card
+                    key={item.job_id}
+                    className="cursor-pointer overflow-y-scroll max-h-[200px] hover:bg-gray-50 transition-colors"
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-1">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                            <h4 className="font-medium text-sm capitalize text-gray-900">
+                              {formattedPathName}
+                            </h4>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">
+                            {item?.summary}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            {item?.key_themes ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {item?.key_themes?.[0]}
+                              </Badge>
+                            ) : (
+                              <div></div>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => window.open(item.url, "_blank")}
+                              className="text-xs p-1 h-auto"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      ) : (
+        <p>Loading....</p>
+      )}
     </div>
   );
 }

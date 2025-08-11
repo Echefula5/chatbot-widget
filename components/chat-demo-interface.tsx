@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { Send, ThumbsUp, ThumbsDown, ExternalLink } from "lucide-react";
+import { Send, ThumbsUp, ThumbsDown, ExternalLink, FileText } from "lucide-react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { sendUserMessage } from "@/graphql/mutations";
@@ -242,31 +242,37 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
 
                   {/* Citations */}
                   {message.isBot &&
-                    parseCitations(message.citations).filter((src) => src.source.toLowerCase().includes(".pdf")).map((citation) => (
-                      <Card key={citation.id} className="mt-2 ml-4 w-[400px]">
-                        <CardContent className="p-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-sm text-gray-900 mb-1">
-                                {citation.source.split("/").pop()}
-                              </h4>
-                             
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  window.open(citation.source, "_blank")
-                                }
-                                className="text-xs"
-                              >
-                                <ExternalLink className="w-3 h-3 mr-1" />
-                                View Source
-                              </Button>
+                    parseCitations(message.citations)
+                      .filter((src) =>
+                        src.source.toLowerCase().includes(".pdf")
+                      )
+                      .map((citation) => (
+                        <Card
+                          key={citation.id}
+                          className="hover:shadow-md transition-shadow cursor-pointer group"
+                          onClick={() => window.open(citation.source, "_blank")}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-0.5">
+                                <FileText className="w-4 h-4 text-red-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h5 className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                                  {citation.source
+                                    .split("/")
+                                    .pop()
+                                    ?.replace(".pdf", "") || "PDF Document"}
+                                </h5>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  PDF Document
+                                </p>
+                              </div>
+                              <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))}
 
                   {/* Feedback buttons for bot messages */}
                   {/* {message.isBot && (

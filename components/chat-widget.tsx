@@ -98,7 +98,6 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
     });
 
     // Resize container to button size
-    notifyParent("WIDGET_RESIZE", { width: 64, height: 64 });
   };
 
   const handleMinimize = () => {
