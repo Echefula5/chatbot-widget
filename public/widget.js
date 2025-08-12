@@ -145,11 +145,7 @@
 
         console.log("📨 Received message:", type);
 
-        if (
-          type === "WIDGET_READY" ||
-          type === "WIDGET_OPEN" ||
-          type === "WIDGET_RESIZE"
-        ) {
+        if (type === "WIDGET_OPEN" || type === "WIDGET_RESIZE") {
           self.isOpen = true;
           if (self.container) {
             self.container.style.cssText = self.getContainerStyles();
