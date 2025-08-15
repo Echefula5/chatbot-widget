@@ -237,7 +237,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                   </div>
 
                   {/* Citations */}
-                  {message.isBot &&
+                  {/* {message.isBot &&
                     parseCitations(message.citations)
                       .filter((src) =>
                         src.source.toLowerCase().includes(".pdf")
@@ -268,7 +268,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      ))}
+                      ))} */}
 
                   {/* Feedback buttons for bot messages */}
                   {/* {message.isBot && (
