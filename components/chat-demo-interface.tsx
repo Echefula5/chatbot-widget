@@ -138,62 +138,33 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
   };
 
   const renderMessageContent = (message: Message) => {
-    let contentText = "";
+  let responseText = "";
+  let confidenceValue = null;
 
-    try {
-      const parsedContent = JSON.parse(message.content);
-      contentText = message.isBot
-        ? parsedContent.response
-        : parsedContent.query;
-    } catch (e) {
-      console.error("Failed to parse content:", message.content);
-      contentText = message.content;
+  try {
+    const parsedContent = JSON.parse(message.content);
+    if (message.isBot) {
+      responseText = parsedContent.response || "";
+      confidenceValue = parsedContent.confidence || null;
+    } else {
+      responseText = parsedContent.query || "";
     }
+  } catch (e) {
+    console.error("Failed to parse content:", message.content);
+    responseText = message.content;
+  }
 
-    let citations: { id: string }[] = [];
-
-    try {
-      const parsedCitations = message.citations;
-      if (Array.isArray(parsedCitations)) {
-        citations = parsedCitations;
-      } else {
-        citations = [];
-      }
-    } catch (e) {
-      console.error("Failed to parse citations:", message.citations);
-      citations = [];
-    }
-
-    if (!message.isBot) {
-      return <div className="whitespace-pre-wrap">{contentText}</div>;
-    }
-
-    // Process citation references like [1], [2]
-    citations?.forEach((citation, index) => {
-      const citationNumber = index + 1;
-      const citationRegex = new RegExp(`\\[${citationNumber}\\]`, "g");
-      contentText = contentText.replace(
-        citationRegex,
-        `<sup class="citation-link cursor-pointer text-blue-600 hover:text-blue-800" data-citation="${citation.id}">[${citationNumber}]</sup>`
-      );
-    });
-
-    return (
-      <div
-        className="whitespace-pre-wrap"
-        dangerouslySetInnerHTML={{ __html: contentText }}
-        onClick={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.classList.contains("citation-link")) {
-            const citationId = target.getAttribute("data-citation");
-            setExpandedCitation(
-              expandedCitation === citationId ? null : citationId
-            );
-          }
-        }}
-      />
-    );
-  };
+  return (
+    <div className="whitespace-pre-wrap">
+      {responseText}
+      {message.isBot && confidenceValue !== null && (
+        <div className="text-xs text-gray-400 mt-1">
+          Confidence: {confidenceValue.toFixed(2)}
+        </div>
+      )}
+    </div>
+  );
+};
 
   const parseCitations = (citations: string): any[] => {
     try {
