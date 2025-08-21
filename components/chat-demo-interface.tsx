@@ -112,17 +112,17 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
         setIsTyping(false);
 
         const botMessage: Message = {
-          newConversation: conversationId === null,
-          conversationId,
-          userId: `user_${sessionId}`,
-          instructions: '{ "randomize_factor": "high" }',
-          content: JSON.stringify({
-            response: result.data.askQuestion.response,
-          }),
-          timestamp: new Date().toISOString(),
-          citations: result.data.askQuestion.metadata.top_sources,
-          isBot: true,
-        };
+  newConversation: conversationId === null,
+  conversationId,
+  userId: `user_${sessionId}`,
+  instructions: '{ "randomize_factor": "high" }',
+  content: JSON.stringify({
+    response: result.data.askQuestion.response,
+    confidence: result.data.askQuestion.metadata.confidence, // ADD THIS
+  }),
+  timestamp: new Date().toISOString(),
+  isBot: true,
+};
 
         setMessages((prev) => [...prev, botMessage]);
       }
