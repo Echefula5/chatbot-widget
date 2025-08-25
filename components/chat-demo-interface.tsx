@@ -11,6 +11,7 @@ import {
   ThumbsDown,
   ExternalLink,
   FileText,
+  Brain,
 } from "lucide-react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
@@ -27,7 +28,8 @@ import {
   handleupdateWidgetFeedback,
   handleWidgetFeedback,
 } from "./actions/assistant";
-
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 interface Message {
   id?: any;
   content: string;
@@ -38,6 +40,7 @@ interface Message {
   instructions: any;
   isBot?: any;
   citations?: any;
+  confidence?: any;
 }
 
 interface Citation {
@@ -73,7 +76,64 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
       },
     },
   });
+  const renderConfidenceIndicator = (message: any) => {
+    const confidence = JSON.parse(message.content).confidence;
+    const percentage = Math.round(confidence * 100);
 
+    // Determine confidence level and styling
+    let confidenceLevel = "Low";
+    let badgeVariant: "destructive" | "secondary" | "default" = "destructive";
+    let progressColor = "bg-red-500";
+
+    if (confidence >= 0.8) {
+      confidenceLevel = "High";
+      badgeVariant = "default";
+      progressColor = "bg-green-500";
+    } else if (confidence >= 0.6) {
+      confidenceLevel = "Medium";
+      badgeVariant = "secondary";
+      progressColor = "bg-yellow-500";
+    }
+
+    return (
+      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">
+              AI Confidence
+            </span>
+          </div>
+          <Badge variant={badgeVariant} className="text-xs">
+            {confidenceLevel}
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">Accuracy Score</span>
+            <span className="font-semibold text-gray-900">{percentage}%</span>
+          </div>
+
+          <div className="relative">
+            <Progress value={percentage} className="h-2" />
+            <div
+              className={`absolute top-0 left-0 h-2 rounded-full transition-all duration-300 ${progressColor}`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
+          <p className="text-xs text-gray-500 mt-1">
+            {confidence >= 0.8
+              ? "High confidence - Information is well-supported"
+              : confidence >= 0.6
+              ? "Medium confidence - Some uncertainty in the response"
+              : "Low confidence - Please verify this information"}
+          </p>
+        </div>
+      </div>
+    );
+  };
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive or typing state changes
     if (scrollAreaRef.current) {
@@ -112,17 +172,17 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
         setIsTyping(false);
 
         const botMessage: Message = {
-  newConversation: conversationId === null,
-  conversationId,
-  userId: `user_${sessionId}`,
-  instructions: '{ "randomize_factor": "high" }',
-  content: JSON.stringify({
-    response: result.data.askQuestion.response,
-    confidence: result.data.askQuestion.metadata.confidence, // ADD THIS
-  }),
-  timestamp: new Date().toISOString(),
-  isBot: true,
-};
+          newConversation: conversationId === null,
+          conversationId,
+          userId: `user_${sessionId}`,
+          instructions: '{ "randomize_factor": "high" }',
+          content: JSON.stringify({
+            response: result.data.askQuestion.response,
+            confidence: result.data.askQuestion.metadata.confidence, // ADD THIS
+          }),
+          timestamp: new Date().toISOString(),
+          isBot: true,
+        };
 
         setMessages((prev) => [...prev, botMessage]);
       }
@@ -138,33 +198,33 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
   };
 
   const renderMessageContent = (message: Message) => {
-  let responseText = "";
-  let confidenceValue = null;
+    let responseText = "";
+    let confidenceValue = null;
 
-  try {
-    const parsedContent = JSON.parse(message.content);
-    if (message.isBot) {
-      responseText = parsedContent.response || "";
-      confidenceValue = parsedContent.confidence || null;
-    } else {
-      responseText = parsedContent.query || "";
+    try {
+      const parsedContent = JSON.parse(message.content);
+      if (message.isBot) {
+        responseText = parsedContent.response || "";
+        confidenceValue = parsedContent.confidence || null;
+      } else {
+        responseText = parsedContent.query || "";
+      }
+    } catch (e) {
+      console.error("Failed to parse content:", message.content);
+      responseText = message.content;
     }
-  } catch (e) {
-    console.error("Failed to parse content:", message.content);
-    responseText = message.content;
-  }
 
-  return (
-    <div className="whitespace-pre-wrap">
-      {responseText}
-      {message.isBot && confidenceValue !== null && (
-        <div className="text-xs text-gray-400 mt-1">
-          Confidence: {confidenceValue.toFixed(2)}
-        </div>
-      )}
-    </div>
-  );
-};
+    return (
+      <div className="whitespace-pre-wrap">
+        {responseText}
+        {message.isBot && confidenceValue !== null && (
+          <div className="text-xs text-gray-400 mt-1">
+            {renderConfidenceIndicator(message)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const parseCitations = (citations: string): any[] => {
     try {
