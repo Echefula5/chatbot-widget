@@ -482,7 +482,11 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                               );
                             }
                           } else {
-                            handleFeedback(message.id, "negative");
+                            handleFeedback(
+                              message.id,
+                              "negative",
+                              JSON.parse(message.content).response
+                            );
                           }
                         }}
                         className={`h-6 w-6 p-0 ${
