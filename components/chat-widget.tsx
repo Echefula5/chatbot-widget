@@ -137,7 +137,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-blue-600 text-white rounded-t-lg">
           <div className="flex items-center space-x-2">
             <MessageCircle className="w-5 h-5" />
-            <span className="font-semibold text-sm">Metro HBX Assistant</span>
+            <span className="font-semibold text-sm">Metro Healthlink Assistant</span>
           </div>
           <div className="flex items-center space-x-1">
             <Button

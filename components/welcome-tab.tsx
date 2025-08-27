@@ -26,7 +26,7 @@ export function WelcomeTab({ onStartChat }: WelcomeTabProps) {
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="text-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to Metro HBX Assistant!</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to Metro HealthLink Assistant!</h2>
         <p className="text-gray-600 text-sm">
           How can I help you today? Ask me anything about health insurance and enrollment.
         </p>
