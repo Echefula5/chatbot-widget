@@ -76,7 +76,7 @@ export async function handleWidgetFeedback(
 export async function handleupdateWidgetFeedback(
   feedbackId: any,
   userId: any,
-  liked: string,
+  liked: boolean,
   timestamp: any
 ) {
   const hasFeedback = liked === true || liked === false;

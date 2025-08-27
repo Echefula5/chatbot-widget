@@ -313,6 +313,27 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
       console.error("Failed to submit feedback:", error);
     }
   };
+  const getSignedUrl = async (pdf_s3_url: any) => {
+    const pdfName = pdf_s3_url.split("/").pop();
+
+    try {
+      const response = await fetch(`/api/get-signed-document`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileName: `reports/${pdfName}`,
+        }),
+      });
+
+      const data = await response.json();
+      console.log(data);
+      if (data?.url) window.open(data.url, "_blank");
+    } catch (error) {
+      console.error("Error fetching signed URL:", error);
+    }
+  };
   const handleupdateFeedbackService = async (
     feedbackId: string,
     feedback: "positive" | "negative",
@@ -376,7 +397,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                         <Card
                           key={index}
                           className="hover:shadow-md transition-shadow max-w-[60%]  cursor-pointer group"
-                          onClick={() => window.open(citation.source, "_blank")}
+                          onClick={() => getSignedUrl(citation.source)}
                         >
                           <CardContent className="p-3">
                             <div className="flex items-start gap-3">
@@ -415,7 +436,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                         size="sm"
                         onClick={() => {
                           const existing = feedback.find(
-                            (f) => f.messageId === message.id
+                            (f: any) => f.messageId === message.id
                           );
                           const liked =
                             feedback.length > 0
@@ -445,7 +466,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                         }}
                         className={`h-6 w-6 p-0 ${
                           feedback.find(
-                            (f) =>
+                            (f: any) =>
                               f.messageId === message.id &&
                               JSON.parse(f.content).liked
                           )
