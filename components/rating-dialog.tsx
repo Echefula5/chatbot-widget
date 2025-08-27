@@ -66,7 +66,7 @@ export function RatingDialog({
         <div className="space-y-4">
           <div className="text-center">
             <p className="text-sm text-gray-600 mb-4">
-              How would you rate your experience with the DC HBX Assistant?
+              How would you rate your experience with the Metro HBX Assistant?
             </p>
 
             <div className="flex justify-center space-x-1">
