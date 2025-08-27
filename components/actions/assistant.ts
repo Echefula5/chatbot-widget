@@ -32,7 +32,11 @@ export async function handleWidgetFeedback(
   messageId: string,
   userId: string,
   liked: boolean,
-  conversationId: string
+  conversationId: string,
+  feedbackType: string,
+  feedback: any,
+  rating: any,
+  response: any
 ): Promise<FeedbackResponse> {
   // Generate a unique ID for the feedback document
   const feedbackId = uuidv4();
@@ -42,17 +46,22 @@ export async function handleWidgetFeedback(
     modelId: process.env.NEXT_PUBLIC_MODEL_ID,
     messageId,
     conversationId,
+    feedbackType,
+    feedback,
+    response,
     userId,
+    rating,
+    entityType: "feedback",
     type: "sentiment",
     content: {
       liked,
       comment: "",
     },
-    createdAt: new Date().toISOString(),
+    timestamp: new Date().toISOString(),
   };
-
+  console.log(item);
   const params = {
-    TableName: "ChatbotFeedback",
+    TableName: "HBX_FEEDBACK",
     Item: marshall(item),
   };
 
@@ -67,7 +76,8 @@ export async function handleWidgetFeedback(
 export async function handleupdateWidgetFeedback(
   feedbackId: any,
   userId: any,
-  liked: string
+  liked: string,
+  timestamp: any
 ) {
   const hasFeedback = liked === true || liked === false;
 
@@ -75,10 +85,10 @@ export async function handleupdateWidgetFeedback(
     // No feedback (null or undefined) — delete the feedback record
     await client.send(
       new DeleteItemCommand({
-        TableName: "ChatbotFeedback",
+        TableName: "HBX_FEEDBACK",
         Key: marshall({
           feedbackId,
-          userId,
+          timestamp,
         }),
       })
     );
@@ -89,14 +99,13 @@ export async function handleupdateWidgetFeedback(
   // Create or update feedback
   const item = marshall({
     feedbackId,
-    userId,
+    timestamp,
     liked,
-    updatedAt: new Date().toISOString(),
   });
-
+  console.log(item);
   await client.send(
     new PutItemCommand({
-      TableName: "ChatbotFeedback",
+      TableName: "HBX_FEEDBACK",
       Item: item,
     })
   );

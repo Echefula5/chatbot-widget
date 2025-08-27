@@ -80,6 +80,30 @@ export const listFeedback = /* GraphQL */ `
     }
   }
 `;
+
+export const HbxlistFeedback = /* GraphQL */ `
+  query HbxlistFeedback(
+    $filter: HbxTableFeedbackFilterInput
+    $limit: Int
+    $nextToken: String
+  ) {
+    HbxlistFeedback(filter: $filter, limit: $limit, nextToken: $nextToken) {
+      items {
+        feedbackId
+        userId
+        content
+        conversationId
+        timestamp
+        messageId
+        modelId
+        type
+        __typename
+      }
+      nextToken
+      __typename
+    }
+  }
+`;
 export const askQuestionQuery = /* GraphQL */ `
   query AskQuestion($query: String!) {
     askQuestion(query: $query) {

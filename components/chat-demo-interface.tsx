@@ -20,10 +20,13 @@ import { onCreateMessage } from "@/graphql/subscriptions";
 import {
   askQuestionQuery,
   getConversation,
+  HbxlistFeedback,
   listFeedback,
   listMessages,
 } from "@/graphql/queries";
 import { useChatDispatch } from "./context";
+import { v4 as uuidv4 } from "uuid";
+
 import {
   handleupdateWidgetFeedback,
   handleWidgetFeedback,
@@ -148,6 +151,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
     setSending(true);
     setInput(""); // Clear input immediately for better UX
     const userMessage: Message = {
+      id: uuidv4(),
       newConversation: conversationId === null ? true : false,
       conversationId: conversationId,
       userId: `user_${sessionId}`,
@@ -167,11 +171,12 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
         query: askQuestionQuery,
         variables: { query: text },
       });
-
+      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
 
         const botMessage: Message = {
+          id: uuidv4(),
           newConversation: conversationId === null,
           conversationId,
           userId: `user_${sessionId}`,
@@ -181,6 +186,8 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
             confidence: result.data.askQuestion.metadata.confidence, // ADD THIS
           }),
           timestamp: new Date().toISOString(),
+          citations: result.data.askQuestion.metadata.top_sources,
+
           isBot: true,
         };
 
@@ -200,20 +207,34 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
-
+    let citations: { id: string }[] = [];
     try {
       const parsedContent = JSON.parse(message.content);
       if (message.isBot) {
         responseText = parsedContent.response || "";
         confidenceValue = parsedContent.confidence || null;
+        const parsedCitations = message.citations;
+        if (Array.isArray(parsedCitations)) {
+          citations = parsedCitations;
+        } else {
+          citations = [];
+        }
       } else {
         responseText = parsedContent.query || "";
       }
     } catch (e) {
       console.error("Failed to parse content:", message.content);
       responseText = message.content;
+      citations = [];
     }
-
+    citations?.forEach((citation, index) => {
+      const citationNumber = index + 1;
+      const citationRegex = new RegExp(`\\[${citationNumber}\\]`, "g");
+      responseText = responseText.replace(
+        citationRegex,
+        `<sup class="citation-link cursor-pointer text-blue-600 hover:text-blue-800" data-citation="${citation.id}">[${citationNumber}]</sup>`
+      );
+    });
     return (
       <div className="whitespace-pre-wrap">
         {responseText}
@@ -243,6 +264,84 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
     }
   };
   console.log(messages);
+  const getAllFeedbacks = async () => {
+    try {
+      const userId = `user_${sessionId}`;
+      const data = await client.graphql({
+        query: HbxlistFeedback,
+        variables: {
+          filter: {
+            userId: { eq: userId },
+          },
+          limit: 100, // optional: adjust limit as needed
+        },
+      });
+      console.log(data);
+      const feedbackItems = (data?.data?.HbxlistFeedback?.items ?? []).filter(
+        Boolean
+      );
+      setFeedback(feedbackItems);
+      console.log(feedbackItems);
+      return feedbackItems;
+    } catch (error) {
+      console.error("Error fetching feedbacks:", error);
+      return [];
+    }
+  };
+  const handleFeedback = async (
+    messageId: string,
+    feedback: "positive" | "negative",
+    botresponse: any
+  ) => {
+    try {
+      const likedValue = feedback === "positive" ? true : false;
+      const userId = `user_${sessionId}`;
+
+      const response = await handleWidgetFeedback(
+        messageId,
+        userId,
+        likedValue,
+        sessionId,
+        "message",
+        null,
+        null,
+        botresponse
+      );
+      getAllFeedbacks();
+      console.log(response);
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+    }
+  };
+  const handleupdateFeedbackService = async (
+    feedbackId: string,
+    feedback: "positive" | "negative",
+    timestamp: any
+  ) => {
+    try {
+      let likedValue: boolean | null;
+
+      if (feedback === "positive") {
+        likedValue = true;
+      } else if (feedback === "negative") {
+        likedValue = false;
+      } else {
+        likedValue = null;
+      }
+      const userId = `user_${sessionId}`;
+
+      const response = await handleupdateWidgetFeedback(
+        feedbackId,
+        userId,
+        likedValue,
+        timestamp
+      );
+      getAllFeedbacks();
+      console.log(response);
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+    }
+  };
   return (
     <div className="flex flex-col">
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -268,7 +367,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                   </div>
 
                   {/* Citations */}
-                  {/* {message.isBot &&
+                  {message.isBot &&
                     parseCitations(message.citations)
                       .filter((src) =>
                         src.source.toLowerCase().includes(".pdf")
@@ -276,7 +375,7 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                       .map((citation, index) => (
                         <Card
                           key={index}
-                          className="hover:shadow-md transition-shadow cursor-pointer group"
+                          className="hover:shadow-md transition-shadow max-w-[60%]  cursor-pointer group"
                           onClick={() => window.open(citation.source, "_blank")}
                         >
                           <CardContent className="p-3">
@@ -284,13 +383,17 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                               <div className="flex-shrink-0 mt-0.5">
                                 <FileText className="w-4 h-4 text-red-500" />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <h5 className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                              <div className="">
+                                <h5
+                                  className="text-sm max-w-[100px] font-medium text-gray-900 
+    truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
+                                >
                                   {citation.source
                                     .split("/")
                                     .pop()
                                     ?.replace(".pdf", "") || "PDF Document"}
                                 </h5>
+
                                 <p className="text-xs text-gray-500 mt-1">
                                   PDF Document
                                 </p>
@@ -299,29 +402,103 @@ export function ChatDemoInterface({ sessionId }: ChatInterfaceProps) {
                             </div>
                           </CardContent>
                         </Card>
-                      ))} */}
+                      ))}
 
                   {/* Feedback buttons for bot messages */}
-                  {/* {message.isBot && (
-                    <div className="flex items-center space-x-2 mt-2 ml-4 text-xs text-gray-500">
-                      <span className="font-medium">Citation:</span>
-                      {message.citations.metadata?.top_sources
-                        ?.filter((src) =>
-                          src.source.toLowerCase().includes(".pdf")
-                        )
-                        .map((src, index) => (
-                          <a
-                            key={index}
-                            href={src.source}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 underline"
-                          >
-                            {`Source ${index + 1}`}
-                          </a>
-                        ))}
+                  {message.isBot && (
+                    <div className="flex items-center space-x-2 mt-2 ml-4">
+                      <span className="text-xs text-gray-500">
+                        Was this helpful?
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const existing = feedback.find(
+                            (f) => f.messageId === message.id
+                          );
+                          const liked =
+                            feedback.length > 0
+                              ? JSON?.parse(existing?.content).liked
+                              : null;
+                          if (existing) {
+                            if (liked) {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                null,
+                                existing.timestamp
+                              );
+                            } else {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                "positive",
+                                existing.timestamp
+                              );
+                            }
+                          } else {
+                            handleFeedback(
+                              message.id,
+                              "positive",
+                              JSON.parse(message.content).response
+                            );
+                          }
+                        }}
+                        className={`h-6 w-6 p-0 ${
+                          feedback.find(
+                            (f) =>
+                              f.messageId === message.id &&
+                              JSON.parse(f.content).liked
+                          )
+                            ? "text-green-600"
+                            : ""
+                        }`}
+                      >
+                        <ThumbsUp className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const existing = feedback?.find(
+                            (f) => f.messageId === message.id
+                          );
+                          const liked =
+                            feedback.length > 0
+                              ? JSON?.parse(existing?.content).liked
+                              : null;
+                          console.log(existing);
+                          if (existing) {
+                            if (!liked) {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                null,
+                                existing.timestamp
+                              );
+                            } else {
+                              handleupdateFeedbackService(
+                                existing.feedbackId,
+                                "negative",
+                                existing.timestamp
+                              );
+                            }
+                          } else {
+                            handleFeedback(message.id, "negative");
+                          }
+                        }}
+                        className={`h-6 w-6 p-0 ${
+                          feedback.find(
+                            (f) =>
+                              f.messageId === message.id &&
+                              !JSON.parse(f.content).liked
+                          )
+                            ? "text-red-600"
+                            : ""
+                        }`}
+                      >
+                        <ThumbsDown className="w-3 h-3" />
+                      </Button>
                     </div>
-                  )} */}
+                  )}
                 </div>
               ))}
 
