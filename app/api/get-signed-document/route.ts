@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 const s3Client = new S3Client({
   region: process.env.HW_AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.HW_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.HW_AWS_SECRET_ACCESS_KEY!,
+  },
 });
 
 interface UploadRequestBody {
