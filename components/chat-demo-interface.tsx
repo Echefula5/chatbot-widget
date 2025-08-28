@@ -99,7 +99,6 @@ export function ChatDemoInterface({
     if (summaryData?.messages?.length > 0) {
       setMessages(summaryData?.messages);
     }
-    console.log(summaryData);
   }, []);
   const renderConfidenceIndicator = (message: any) => {
     const confidence = JSON.parse(message.content).confidence;
@@ -341,23 +340,25 @@ export function ChatDemoInterface({
     }
   };
 
-  const getSignedUrl = async (pdf_s3_url: any) => {
+  const getSignedUrl = async (pdf_s3_url: string) => {
     const pdfName = pdf_s3_url.split("/").pop();
 
     try {
       const response = await fetch(`/api/get-signed-document`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileName: `reports/${pdfName}`,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: `reports/${pdfName}` }),
       });
 
       const data = await response.json();
-      console.log(data);
-      if (data?.url) window.open(data.url, "_blank");
+      if (data?.url) {
+        const link = document.createElement("a");
+        link.href = data.url;
+        link.download = pdfName || "document.pdf"; // suggested filename
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (error) {
       console.error("Error fetching signed URL:", error);
     }
