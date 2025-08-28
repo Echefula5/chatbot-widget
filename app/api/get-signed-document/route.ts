@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const bucketName = process.env.HW_AWS_S3_HBX_BUCKET_NAME;
+  const bucketName =
+    process.env.HW_AWS_S3_HBX_BUCKET_NAME || "hbx-widget-datascource-da";
 
   try {
     const command = new GetObjectCommand({
