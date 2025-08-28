@@ -19,6 +19,7 @@ interface RatingDialogProps {
   onOpenChange: (open: boolean) => void;
   sessionId: string;
   messages: any;
+  setMessages: any;
 }
 
 export function RatingDialog({
@@ -26,6 +27,7 @@ export function RatingDialog({
   onOpenChange,
   sessionId,
   messages,
+  setMessages,
 }: RatingDialogProps) {
   const [rating, setRating] = useState(0);
   const [feedback, setFeedback] = useState("");
@@ -53,6 +55,7 @@ export function RatingDialog({
 
       onOpenChange(false);
       setRating(0);
+      setMessages([]);
       setFeedback("");
       setEmail("");
     } catch (error) {

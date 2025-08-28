@@ -19,6 +19,7 @@ import {
   FileText,
   Brain,
   ChevronDown,
+  X,
 } from "lucide-react";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
@@ -66,12 +67,14 @@ interface ChatInterfaceProps {
   sessionId: string;
   messages: any;
   setMessages: any;
+  setShowRating: any;
 }
 
 export function ChatDemoInterface({
   sessionId,
   messages,
   setMessages,
+  setShowRating,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -94,12 +97,18 @@ export function ChatDemoInterface({
       },
     },
   });
+
   useEffect(() => {
     const summaryData = JSON.parse(getCookie("metro_link_messages") || "{}");
     if (summaryData?.messages?.length > 0) {
       setMessages(summaryData?.messages);
     }
   }, []);
+
+  const handleEndChat = () => {
+    setShowRating(true);
+  };
+
   const renderConfidenceIndicator = (message: any) => {
     const confidence = JSON.parse(message.content).confidence;
     const percentage = Math.round(confidence * 100);
@@ -395,209 +404,236 @@ export function ChatDemoInterface({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col relative">
+      {/* Floating End Chat Button */}
+      {messages.length > 2 && (
+        <div className="fixed bottom-20 right-6 z-50">
+          <Button
+            onClick={handleEndChat}
+            className="bg-red-500 hover:bg-red-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105"
+            size="sm"
+          >
+            <X className="w-4 h-4 mr-2" />
+            End Chat
+          </Button>
+        </div>
+      )}
+
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="flex flex-col max-h-[360px] h-[380px] border rounded overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
-              {messages.map((message: any, index: any) => (
-                <div key={index}>
-                  <div
-                    className={`flex ${
-                      !message.isBot ? "justify-end" : "justify-start"
-                    }`}
-                  >
+              {messages.map((message: any, index: any) => {
+                console.log(message);
+                return (
+                  <div key={index}>
                     <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
-                        message.isBot
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900"
+                      className={`flex ${
+                        !message.isBot ? "justify-end" : "justify-start"
                       }`}
                     >
-                      {renderMessageContent(message)}
+                      <div
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          message.isBot
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-900"
+                        }`}
+                      >
+                        {renderMessageContent(message)}
+                        {JSON.parse(message.content).response ===
+                          "Sorry, I am unable to help you with this query right now. Connecting with a support agent may help." && (
+                          <Button size="sm" className=" mt-4">
+                            Connect with a support specialist
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Citations Accordion */}
-                  {message.isBot &&
-                    parseCitations(message.citations).filter((src) =>
-                      src.source.toLowerCase().includes(".pdf")
-                    ).length > 0 && (
-                      <div className="max-w-[80%] mt-3">
-                        <Accordion type="single" collapsible className="w-full">
-                          <AccordionItem
-                            value={`citations-${message.id}`}
-                            className="border rounded-lg"
+                    {/* Citations Accordion */}
+                    {message.isBot &&
+                      parseCitations(message.citations).filter((src) =>
+                        src.source.toLowerCase().includes(".pdf")
+                      ).length > 0 && (
+                        <div className="max-w-[80%] mt-3">
+                          <Accordion
+                            type="single"
+                            collapsible
+                            className="w-full"
                           >
-                            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                <FileText className="w-4 h-4 text-blue-600" />
-                                <span>
-                                  Citations (
-                                  {
-                                    parseCitations(message.citations).filter(
-                                      (src) =>
-                                        src.source
-                                          .toLowerCase()
-                                          .includes(".pdf")
-                                    ).length
-                                  }
-                                  )
-                                </span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-3">
-                              <div className="space-y-2">
-                                {parseCitations(message.citations)
-                                  .filter((src) =>
-                                    src.source.toLowerCase().includes(".pdf")
-                                  )
-                                  .map((citation, citationIndex) => (
-                                    <Card
-                                      key={citationIndex}
-                                      className="hover:shadow-md transition-shadow cursor-pointer group border-l-4 border-l-blue-500"
-                                      onClick={() =>
-                                        getSignedUrl(citation.source)
-                                      }
-                                    >
-                                      <CardContent className="p-3">
-                                        <div className="flex items-start gap-3">
-                                          <div className="flex-shrink-0 mt-0.5">
-                                            <FileText className="w-4 h-4 text-red-500" />
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                            <h5
-                                              className="text-sm max-w-[100px] font-medium text-gray-900 
+                            <AccordionItem
+                              value={`citations-${message.id}`}
+                              className="border rounded-lg"
+                            >
+                              <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                  <FileText className="w-4 h-4 text-blue-600" />
+                                  <span>
+                                    Citations (
+                                    {
+                                      parseCitations(message.citations).filter(
+                                        (src) =>
+                                          src.source
+                                            .toLowerCase()
+                                            .includes(".pdf")
+                                      ).length
+                                    }
+                                    )
+                                  </span>
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent className="px-4 pb-3">
+                                <div className="space-y-2">
+                                  {parseCitations(message.citations)
+                                    .filter((src) =>
+                                      src.source.toLowerCase().includes(".pdf")
+                                    )
+                                    .map((citation, citationIndex) => (
+                                      <Card
+                                        key={citationIndex}
+                                        className="hover:shadow-md transition-shadow cursor-pointer group border-l-4 border-l-blue-500"
+                                        onClick={() =>
+                                          getSignedUrl(citation.source)
+                                        }
+                                      >
+                                        <CardContent className="p-3">
+                                          <div className="flex items-start gap-3">
+                                            <div className="flex-shrink-0 mt-0.5">
+                                              <FileText className="w-4 h-4 text-red-500" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <h5
+                                                className="text-sm max-w-[100px] font-medium text-gray-900 
     truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
-                                            >
-                                              {citation.source
-                                                .split("/")
-                                                .pop()
-                                                ?.replace(".pdf", "") ||
-                                                "PDF Document"}
-                                            </h5>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                              PDF Document • Click to view
-                                            </p>
-                                            {citation.snippet && (
-                                              <p className="text-xs text-gray-600 mt-2 line-clamp-2">
-                                                {citation.snippet}
+                                              >
+                                                {citation.source
+                                                  .split("/")
+                                                  .pop()
+                                                  ?.replace(".pdf", "") ||
+                                                  "PDF Document"}
+                                              </h5>
+                                              <p className="text-xs text-gray-500 mt-1">
+                                                PDF Document • Click to view
                                               </p>
-                                            )}
+                                              {citation.snippet && (
+                                                <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                                                  {citation.snippet}
+                                                </p>
+                                              )}
+                                            </div>
+                                            <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
                                           </div>
-                                          <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  ))}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
+                        </div>
+                      )}
+
+                    {/* Feedback buttons for bot messages */}
+                    {message.isBot && (
+                      <div className="flex items-center space-x-2 mt-2 ml-4">
+                        <span className="text-xs text-gray-500">
+                          Was this helpful?
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const existing = feedback.find(
+                              (f: any) => f.messageId === message.id
+                            );
+                            const liked =
+                              feedback.length > 0
+                                ? JSON?.parse(existing?.content).liked
+                                : null;
+                            if (existing) {
+                              if (liked) {
+                                handleupdateFeedbackService(
+                                  existing.feedbackId,
+                                  null,
+                                  existing.timestamp
+                                );
+                              } else {
+                                handleupdateFeedbackService(
+                                  existing.feedbackId,
+                                  "positive",
+                                  existing.timestamp
+                                );
+                              }
+                            } else {
+                              handleFeedback(
+                                message.id,
+                                "positive",
+                                JSON.parse(message.content).response
+                              );
+                            }
+                          }}
+                          className={`h-6 w-6 p-0 ${
+                            feedback.find(
+                              (f: any) =>
+                                f.messageId === message.id &&
+                                JSON.parse(f.content).liked
+                            )
+                              ? "text-green-600"
+                              : ""
+                          }`}
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            const existing = feedback?.find(
+                              (f) => f.messageId === message.id
+                            );
+                            const liked =
+                              feedback.length > 0
+                                ? JSON?.parse(existing?.content).liked
+                                : null;
+                            console.log(existing);
+                            if (existing) {
+                              if (!liked) {
+                                handleupdateFeedbackService(
+                                  existing.feedbackId,
+                                  null,
+                                  existing.timestamp
+                                );
+                              } else {
+                                handleupdateFeedbackService(
+                                  existing.feedbackId,
+                                  "negative",
+                                  existing.timestamp
+                                );
+                              }
+                            } else {
+                              handleFeedback(
+                                message.id,
+                                "negative",
+                                JSON.parse(message.content).response
+                              );
+                            }
+                          }}
+                          className={`h-6 w-6 p-0 ${
+                            feedback.find(
+                              (f) =>
+                                f.messageId === message.id &&
+                                !JSON.parse(f.content).liked
+                            )
+                              ? "text-red-600"
+                              : ""
+                          }`}
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </Button>
                       </div>
                     )}
-
-                  {/* Feedback buttons for bot messages */}
-                  {message.isBot && (
-                    <div className="flex items-center space-x-2 mt-2 ml-4">
-                      <span className="text-xs text-gray-500">
-                        Was this helpful?
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const existing = feedback.find(
-                            (f: any) => f.messageId === message.id
-                          );
-                          const liked =
-                            feedback.length > 0
-                              ? JSON?.parse(existing?.content).liked
-                              : null;
-                          if (existing) {
-                            if (liked) {
-                              handleupdateFeedbackService(
-                                existing.feedbackId,
-                                null,
-                                existing.timestamp
-                              );
-                            } else {
-                              handleupdateFeedbackService(
-                                existing.feedbackId,
-                                "positive",
-                                existing.timestamp
-                              );
-                            }
-                          } else {
-                            handleFeedback(
-                              message.id,
-                              "positive",
-                              JSON.parse(message.content).response
-                            );
-                          }
-                        }}
-                        className={`h-6 w-6 p-0 ${
-                          feedback.find(
-                            (f: any) =>
-                              f.messageId === message.id &&
-                              JSON.parse(f.content).liked
-                          )
-                            ? "text-green-600"
-                            : ""
-                        }`}
-                      >
-                        <ThumbsUp className="w-3 h-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const existing = feedback?.find(
-                            (f) => f.messageId === message.id
-                          );
-                          const liked =
-                            feedback.length > 0
-                              ? JSON?.parse(existing?.content).liked
-                              : null;
-                          console.log(existing);
-                          if (existing) {
-                            if (!liked) {
-                              handleupdateFeedbackService(
-                                existing.feedbackId,
-                                null,
-                                existing.timestamp
-                              );
-                            } else {
-                              handleupdateFeedbackService(
-                                existing.feedbackId,
-                                "negative",
-                                existing.timestamp
-                              );
-                            }
-                          } else {
-                            handleFeedback(
-                              message.id,
-                              "negative",
-                              JSON.parse(message.content).response
-                            );
-                          }
-                        }}
-                        className={`h-6 w-6 p-0 ${
-                          feedback.find(
-                            (f) =>
-                              f.messageId === message.id &&
-                              !JSON.parse(f.content).liked
-                          )
-                            ? "text-red-600"
-                            : ""
-                        }`}
-                      >
-                        <ThumbsDown className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
 
               {/* Typing animation */}
               {isTyping && (

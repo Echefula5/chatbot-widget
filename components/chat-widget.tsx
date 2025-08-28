@@ -215,6 +215,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
                 sessionId={sessionId}
                 messages={messages}
                 setMessages={setMessages}
+                setShowRating={setShowRating}
               />
             </TabsContent>
 
@@ -230,6 +231,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
         onOpenChange={setShowRating}
         sessionId={sessionId}
         messages={messages}
+        setMessages={setMessages}
       />
     </ChatProvider>
   );
