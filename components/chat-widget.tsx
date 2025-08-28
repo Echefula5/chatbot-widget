@@ -10,7 +10,18 @@ import { KnowledgeBaseTab } from "./knowledge-base-tab";
 import { RatingDialog } from "./rating-dialog";
 import { ChatProvider } from "./context";
 import { ChatDemoInterface } from "./chat-demo-interface";
-
+interface Message {
+  id?: any;
+  content: string;
+  timestamp: String;
+  newConversation: boolean;
+  conversationId: any;
+  userId: String;
+  instructions: any;
+  isBot?: any;
+  citations?: any;
+  confidence?: any;
+}
 interface ChatWidgetProps {
   widgetId: string;
   theme?: string;
@@ -21,6 +32,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
   const [activeTab, setActiveTab] = useState("welcome");
   const [showRating, setShowRating] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // Notify parent window of state changes
   const notifyParent = (type: string, data?: any) => {
@@ -137,7 +149,9 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
         <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-blue-600 text-white rounded-t-lg">
           <div className="flex items-center space-x-2">
             <MessageCircle className="w-5 h-5" />
-            <span className="font-semibold text-sm">Metro Healthlink Assistant</span>
+            <span className="font-semibold text-sm">
+              Metro Healthlink Assistant
+            </span>
           </div>
           <div className="flex items-center space-x-1">
             <Button
@@ -197,7 +211,11 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
             </TabsContent>
 
             <TabsContent value="chat" className="h-full m-0">
-              <ChatDemoInterface sessionId={sessionId} widgetId={widgetId} />
+              <ChatDemoInterface
+                sessionId={sessionId}
+                messages={messages}
+                setMessages={setMessages}
+              />
             </TabsContent>
 
             <TabsContent value="knowledge" className="h-full m-0">
@@ -211,7 +229,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
         open={showRating}
         onOpenChange={setShowRating}
         sessionId={sessionId}
-        widgetId={widgetId}
+        messages={messages}
       />
     </ChatProvider>
   );
