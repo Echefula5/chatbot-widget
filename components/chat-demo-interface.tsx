@@ -96,7 +96,7 @@ export function ChatDemoInterface({
   });
   useEffect(() => {
     const summaryData = JSON.parse(getCookie("metro_link_messages") || "{}");
-    if (summaryData?.messages.length > 0) {
+    if (summaryData?.messages?.length > 0) {
       setMessages(summaryData?.messages);
     }
     console.log(summaryData);
