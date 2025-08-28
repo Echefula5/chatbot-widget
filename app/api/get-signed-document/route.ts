@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
 
   const bucketName =
     process.env.HW_AWS_S3_HBX_BUCKET_NAME || "hbx-widget-datascource-da";
-  console.log(s3Client);
+
   const test = process.env.HW_AWS_ACCESS_KEY_ID;
   try {
     const command = new GetObjectCommand({
@@ -46,6 +46,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, url: signedUrl });
   } catch (error: any) {
     console.error("Error getting signed URL:", error);
-    return NextResponse.json({ success: false, error: error.message, test });
+    console.error("AWS Region:", process.env.HW_AWS_REGION);
+    console.error("Access Key ID exists:", !!process.env.HW_AWS_ACCESS_KEY_ID);
+    console.error("Secret Key exists:", !!process.env.HW_AWS_SECRET_ACCESS_KEY);
+
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      details: {
+        hasRegion: !!process.env.HW_AWS_REGION,
+        hasAccessKey: !!process.env.HW_AWS_ACCESS_KEY_ID,
+        hasSecretKey: !!process.env.HW_AWS_SECRET_ACCESS_KEY,
+      },
+    });
   }
 }
