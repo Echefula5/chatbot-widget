@@ -10,7 +10,12 @@ import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { sendUserMessage } from "@/graphql/mutations";
 import { onCreateMessage } from "@/graphql/subscriptions";
-import { getConversation, listFeedback, listMessages } from "@/graphql/queries";
+import {
+  getConversation,
+  hbxlistFeedback,
+  listFeedback,
+  listMessages,
+} from "@/graphql/queries";
 import { useChatDispatch } from "./context";
 import {
   handleupdateWidgetFeedback,
@@ -116,7 +121,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
     try {
       const userId = `user_${sessionId}`;
       const data = await client.graphql({
-        query: listFeedback,
+        query: hbxlistFeedback,
         variables: {
           filter: {
             userId: { eq: userId },
@@ -124,8 +129,8 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
           limit: 100, // optional: adjust limit as needed
         },
       });
-
-      const feedbackItems = (data?.data?.listFeedback?.items ?? []).filter(
+      console.log(data);
+      const feedbackItems = (data?.data?.hbxlistFeedback?.items ?? []).filter(
         Boolean
       );
       setFeedback(feedbackItems);
@@ -372,7 +377,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                   </div>
 
                   {/* Citations */}
-                  {message.isBot &&
+                  {/* {message.isBot &&
                     Array.isArray(parseCitations(message.citations)) &&
                     parseCitations(message.citations).map(
                       (citation) =>
@@ -403,7 +408,7 @@ export function ChatInterface({ sessionId }: ChatInterfaceProps) {
                             </CardContent>
                           </Card>
                         )
-                    )}
+                    )} */}
 
                   {/* Feedback buttons for bot messages */}
                   {message.isBot && (

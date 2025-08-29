@@ -205,7 +205,7 @@ export function ChatDemoInterface({
       console.log(text);
       const result = await client.graphql({
         query: askQuestionQuery,
-        variables: { query: text },
+        variables: { query: text, session_id: sessionId },
       });
       console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
@@ -406,25 +406,12 @@ export function ChatDemoInterface({
   return (
     <div className="flex flex-col relative">
       {/* Floating End Chat Button */}
-      {messages.length > 2 && (
-        <div className="fixed bottom-20 right-6 z-50">
-          <Button
-            onClick={handleEndChat}
-            className="bg-red-500 hover:bg-red-600 text-white rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105"
-            size="sm"
-          >
-            <X className="w-4 h-4 mr-2" />
-            End Chat
-          </Button>
-        </div>
-      )}
 
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="flex flex-col max-h-[360px] h-[380px] border rounded overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
               {messages.map((message: any, index: any) => {
-                console.log(message);
                 return (
                   <div key={index}>
                     <div
@@ -442,9 +429,18 @@ export function ChatDemoInterface({
                         {renderMessageContent(message)}
                         {JSON.parse(message.content).response ===
                           "Sorry, I am unable to help you with this query right now. Connecting with a support agent may help." && (
-                          <Button size="sm" className=" mt-4">
-                            Connect with a support specialist
-                          </Button>
+                          <a
+                            href="https://metrohealthlink.com/contact" // <-- Change this to your actual support link
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button
+                              size="sm"
+                              className="mt-4 bg-white text-blue-600 border border-blue-600 hover:bg-blue-50 hover:border-blue-700 hover:text-blue-700 transition-colors rounded-md shadow-sm"
+                            >
+                              Connect with Support
+                            </Button>
+                          </a>
                         )}
                       </div>
                     </div>

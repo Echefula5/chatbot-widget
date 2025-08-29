@@ -105,8 +105,8 @@ export const HbxlistFeedback = /* GraphQL */ `
   }
 `;
 export const askQuestionQuery = /* GraphQL */ `
-  query AskQuestion($query: String!) {
-    askQuestion(query: $query) {
+  query AskQuestion($query: String!, $session_id: String!) {
+    askQuestion(query: $query, session_id: $session_id) {
       success
       response
       metadata {
