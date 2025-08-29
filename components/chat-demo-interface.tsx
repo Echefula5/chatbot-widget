@@ -18,6 +18,7 @@ import {
   ExternalLink,
   FileText,
   Brain,
+  Globe,
   ChevronDown,
   X,
 } from "lucide-react";
@@ -495,7 +496,7 @@ export function ChatDemoInterface({
                           >
                             <AccordionTrigger className="px-4 py-3 hover:no-underline">
                               <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                <FileText className="w-4 h-4 text-blue-600" />
+                                <Globe className="w-4 h-4 text-blue-600" />
                                 <span>Citations (1)</span>
                               </div>
                             </AccordionTrigger>
@@ -505,7 +506,7 @@ export function ChatDemoInterface({
                                   <CardContent className="p-3">
                                     <div className="flex items-start gap-3">
                                       <div className="flex-shrink-0 mt-0.5">
-                                        <FileText className="w-4 h-4 text-red-500" />
+                                        <Globe className="w-4 h-4 text-blue-500" />
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <h5
@@ -518,9 +519,14 @@ export function ChatDemoInterface({
                                             ?.replace(".pdf", "") ||
                                             "PDF Document"}
                                         </h5>
-                                        <p className="text-xs text-gray-500 mt-1">
+                                        <a
+                                          className="text-xs text-gray-500 mt-1"
+                                          href={message.citations.source_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
                                           Webpage • Click to view
-                                        </p>
+                                        </a>
                                         {message.citations.executiveSummary && (
                                           <p className="text-xs text-gray-600 mt-2">
                                             {message.citations.executiveSummary}
