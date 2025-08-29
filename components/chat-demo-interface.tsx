@@ -522,7 +522,7 @@ export function ChatDemoInterface({
                                           Webpage • Click to view
                                         </p>
                                         {message.citations.executiveSummary && (
-                                          <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                                          <p className="text-xs text-gray-600 mt-2">
                                             {message.citations.executiveSummary}
                                           </p>
                                         )}
