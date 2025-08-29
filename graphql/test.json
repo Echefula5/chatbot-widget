@@ -1,0 +1,107 @@
+{
+  "statusCode": 200,
+  "headers": {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token"
+  },
+  "body": {
+    "success": true,
+    "response": "The DC Individual Responsibility Requirement is a law in the District of Columbia that requires residents to have qualifying health coverage, obtain an exemption, or pay a tax penalty. According to the context provided from https://metrohealthlink.com/blog-single/dc-individual-responsibility-requirement, all DC residents must comply with this requirement.\n\nThe key points about the DC Individual Responsibility Requirement are:\n\n- DC residents must have qualifying health insurance coverage, get an exemption, or pay a penalty when filing taxes.\n- The penalty for not having coverage in 2024 is $795 per adult, $397.50 per child, up to a maximum of $2,385 per family or 2.5% of household income above the tax filing threshold.\n- Exemptions from the requirement are available through Metro Health Link.\n- There is an annual penalty cap of $4,388 per person in 2024, multiplied by up to 5 family members.\n\nThe context provides a comprehensive explanation of this DC law, including details on how the penalty is calculated, exemption information, and penalty caps. Let me know if you need any additional details from the provided information.",
+    "metadata": {
+      "response": "The DC Individual Responsibility Requirement is a law in the District of Columbia that requires residents to have qualifying health coverage, obtain an exemption, or pay a tax penalty. According to the context provided from https://metrohealthlink.com/blog-single/dc-individual-responsibility-requirement, all DC residents must comply with this requirement.\n\nThe key points about the DC Individual Responsibility Requirement are:\n\n- DC residents must have qualifying health insurance coverage, get an exemption, or pay a penalty when filing taxes.\n- The penalty for not having coverage in 2024 is $795 per adult, $397.50 per child, up to a maximum of $2,385 per family or 2.5% of household income above the tax filing threshold.\n- Exemptions from the requirement are available through Metro Health Link.\n- There is an annual penalty cap of $4,388 per person in 2024, multiplied by up to 5 family members.\n\nThe context provides a comprehensive explanation of this DC law, including details on how the penalty is calculated, exemption information, and penalty caps. Let me know if you need any additional details from the provided information.",
+      "citations": [],
+      "intent_analysis": {
+        "intent": "knowledge_base_query",
+        "confidence": 0.95,
+        "requires_retrieval": true
+      },
+      "sentiment_analysis": {
+        "sentiment": "neutral",
+        "polarity": 0.0
+      },
+      "query_analysis": {
+        "complexity_level": "low",
+        "query_type": "simple",
+        "entities": ["DC", "DC Individual Responsibility Requirement", "What"]
+      },
+      "retrieved_docs": [
+        {
+          "content": "Web Content Analysis Report     Scraping Method: DYNAMIC_ENHANCED Content Quality Score: 8/10 Dynamic Content Detected: No     Source: https://metrohealthlink.com/blog-single/dc-individual-responsibility-requirement Analysis Date: 2025-08-27 11:12:22 Content Items Found: 1     Executive Summary     This content explains DC's Individual Responsibility Requirement, a law requiring residents to have qualifying health coverage, get an exemption, or pay a tax penalty. It details how the penalty is calculated, provides examples, and offers information on exemptions and penalty caps.     Key Themes Identified     • Health insurance • Tax penalties • Government regulations • Individual responsibility     Content Analysis     1. DC's Individual Responsibility Requirement (Importance: 9/10)     Category: government | Date: 2025-08-19     Summary: Explanation of DC's health coverage law, including penalties for non-compliance, exemptions, and penalty caps.",
+          "score": 0.7372542,
+          "metadata": {
+            "x-amz-bedrock-kb-source-uri": "s3://hbx-widget-datascource-da/reports/metrohealthlink_com_20250827_111222_dynamic.pdf",
+            "x-amz-bedrock-kb-document-page-number": 1.0,
+            "x-amz-bedrock-kb-chunk-id": "1%3A0%3AVQU665gB52IDsDMU5Yl1",
+            "x-amz-bedrock-kb-data-source-id": "GNRIZMRCMK"
+          },
+          "location": {
+            "s3Location": {
+              "uri": "s3://hbx-widget-datascource-da/reports/metrohealthlink_com_20250827_111222_dynamic.pdf"
+            },
+            "type": "S3"
+          },
+          "source": "s3://hbx-widget-datascource-da/reports/metrohealthlink_com_20250827_111222_dynamic.pdf"
+        },
+        {
+          "content": "Source URL: https://metrohealthlink.com/blog-single/dc-individual-responsibility-requirement Scraping Method: Dynamic Enhanced (crawl4ai) Extraction Date: 2025-08-27 11:12:22 Total Characters: 9621 Word Count: 743 Child Links: 0 Child Scraped: 0 ================================================================================    * Home   * Department   * Services   * Pages   * Blog   * [Contact](https://metrohealthlink.com/contact)   [!",
+          "score": 0.62818456,
+          "metadata": {
+            "x-amz-bedrock-kb-source-uri": "s3://hbx-widget-datascource-da/raw_texts/metrohealthlink_com_20250827_111222_raw_dynamic.txt",
+            "x-amz-bedrock-kb-chunk-id": "1%3A0%3AWgU665gB52IDsDMU6YkY",
+            "x-amz-bedrock-kb-data-source-id": "GNRIZMRCMK"
+          },
+          "location": {
+            "s3Location": {
+              "uri": "s3://hbx-widget-datascource-da/raw_texts/metrohealthlink_com_20250827_111222_raw_dynamic.txt"
+            },
+            "type": "S3"
+          },
+          "source": "s3://hbx-widget-datascource-da/raw_texts/metrohealthlink_com_20250827_111222_raw_dynamic.txt"
+        },
+        {
+          "content": {
+            "source_url": "https://metrohealthlink.com/blog-single/dc-individual-responsibility-requirement",
+            "extraction_date": "2025-08-27 11:12:22",
+            "scraping_method": "dynamic_enhanced",
+            "summary": "This content explains DC's Individual Responsibility Requirement, a law requiring residents to have qualifying health coverage, get an exemption, or pay a tax penalty. It details how the penalty is calculated, provides examples, and offers information on exemptions and penalty caps.",
+            "articles": [
+              {
+                "title": "DC's Individual Responsibility Requirement",
+                "category": "government",
+                "summary": "Explanation of DC's health coverage law, including penalties for non-compliance, exemptions, and penalty caps.",
+                "key_points": [
+                  "DC law requires residents to have qualifying health coverage, get an exemption, or pay a penalty",
+                  "Penalty for 2024 is $795 per adult, $397.50 per child, up to $2,385 per family or 2.5% of family income above tax filing threshold",
+                  "Exemptions are available through Metro Health Link",
+                  "Penalty cap for 2024 is $4,388/year per person, multiplied by up to 5 family members"
+                ],
+                "quotes": ["Get Covered."]
+              }
+            ]
+          },
+          "score": 0.6117243,
+          "metadata": {
+            "x-amz-bedrock-kb-source-uri": "s3://hbx-widget-datascource-da/analyses/metrohealthlink_com_20250827_111222_analysis_dynamic.json",
+            "x-amz-bedrock-kb-chunk-id": "1%3A0%3AVwU665gB52IDsDMU54mO",
+            "x-amz-bedrock-kb-data-source-id": "GNRIZMRCMK"
+          },
+          "location": {
+            "s3Location": {
+              "uri": "s3://hbx-widget-datascource-da/analyses/metrohealthlink_com_20250827_111222_analysis_dynamic.json"
+            },
+            "type": "S3"
+          },
+          "source": "s3://hbx-widget-datascource-da/analyses/metrohealthlink_com_20250827_111222_analysis_dynamic.json"
+        }
+      ],
+      "confidence": 0.8775,
+      "processing_time_ms": 12104.558,
+      "session_id": "4c033474-8306-40c9-8e4d-4a33076d58ac",
+      "timestamp": "2025-08-29T07:53:16.607475",
+      "enhancement_applied": false,
+      "saved_to_database": true
+    }
+  }
+}

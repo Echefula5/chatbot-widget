@@ -180,6 +180,53 @@ export function ChatDemoInterface({
     setTimeout(scrollToBottom, 100);
   }, [messages, isTyping]);
 
+  // function formatDocument(doc) {
+  //   let parsedContent = doc.content;
+  //   let sourceUrl = null;
+  //   let isValidJson = false;
+
+  //   // Try to parse content as JSON
+  //   try {
+  //     if (typeof doc.content === "string") {
+  //       // Handle incomplete JSON by extracting source_url with regex first
+  //       const sourceUrlMatch = doc.content.match(/"source_url":\s*"([^"]+)"/);
+  //       if (sourceUrlMatch) {
+  //         sourceUrl = sourceUrlMatch[1];
+  //       }
+
+  //       // Try to parse as JSON (may fail due to truncation)
+  //       if (doc.content.trim().startsWith("{")) {
+  //         parsedContent = JSON.parse(doc.content);
+  //         isValidJson = true;
+  //         sourceUrl = parsedContent.source_url; // Override with parsed value
+  //       }
+  //     }
+  //   } catch (e) {
+  //     // JSON parsing failed, but we may have extracted source_url via regex
+  //     console.log("JSON parsing failed, using regex extraction");
+  //   }
+  //   console.log(parsedContent);
+  //   return {
+  //     index: doc.index || 0,
+  //     score: doc.score,
+  //     source: doc.source,
+  //     location_type: doc.location?.type,
+  //     source_url: sourceUrl,
+  //     extraction_date: isValidJson ? parsedContent.extraction_date : null,
+  //     scraping_method: isValidJson ? parsedContent.scraping_method : null,
+  //     summary: isValidJson ? parsedContent.summary : null,
+  //     articles: isValidJson ? parsedContent.articles : null,
+  //     isValidJson: isValidJson,
+  //     hasSourceUrl: !!sourceUrl,
+  //     contentType: typeof parsedContent,
+  //     rawContent: doc.content.substring(0, 100) + "...", // First 100 chars for preview
+  //   };
+  // }
+
+  // // Format the document
+  // const formattedDoc = formatDocument(formatData);
+  // console.log(formattedDoc);
+  // Filter only documents that have source_url
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || sending) return;
@@ -210,7 +257,36 @@ export function ChatDemoInterface({
       console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
+        const formatData = result.data.askQuestion.metadata.retrieved_docs[0];
+        const content = formatData.content;
 
+        // Extract sections by labels
+        const extractSection = (label) => {
+          const regex = new RegExp(
+            `${label}\\s+(.*?)\\s+(?=(Scraping Method|Content Quality Score|Dynamic Content Detected|Source|Analysis Date|Content Items Found|Executive Summary|Key Themes Identified|Content Analysis|$))`,
+            "s"
+          );
+          const match = content.match(regex);
+          return match ? match[1].trim() : null;
+        };
+
+        const structuredContent = {
+          reportTitle: "Web Content Analysis Report", // static title
+          scrapingMethod:
+            extractSection("Scraping Method") || "DYNAMIC_ENHANCED",
+          contentQuality: extractSection("Content Quality Score") || null,
+          dynamicDetected: extractSection("Dynamic Content Detected") || null,
+          source_url:
+            (content.match(/Source:\s*(https?:\/\/[^\s]+)/) || [])[1] || null,
+          analysisDate: extractSection("Analysis Date") || null,
+          executiveSummary: extractSection("Executive Summary") || null,
+          keyThemes: (extractSection("Key Themes Identified") || "")
+            .split("•")
+            .map((t) => t.trim())
+            .filter(Boolean),
+          contentAnalysis: extractSection("Content Analysis") || null,
+          source: formatData.source,
+        };
         const botMessage: Message = {
           id: uuidv4(),
           newConversation: conversationId === null,
@@ -222,7 +298,7 @@ export function ChatDemoInterface({
             confidence: result.data.askQuestion.metadata.confidence,
           }),
           timestamp: new Date().toISOString(),
-          citations: result.data.askQuestion.metadata.top_sources,
+          citations: structuredContent,
           isBot: true,
         };
 
@@ -279,24 +355,12 @@ export function ChatDemoInterface({
     );
   };
 
-  const parseCitations = (citations: string): any[] => {
-    try {
-      const parsed = citations;
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error("Invalid citations JSON:", citations);
-      return [];
-    }
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
-  console.log(messages);
 
   const getAllFeedbacks = async () => {
     try {
@@ -349,30 +413,6 @@ export function ChatDemoInterface({
     }
   };
 
-  const getSignedUrl = async (pdf_s3_url: string) => {
-    const pdfName = pdf_s3_url.split("/").pop();
-
-    try {
-      const response = await fetch(`/api/get-signed-document`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: `reports/${pdfName}` }),
-      });
-
-      const data = await response.json();
-      if (data?.url) {
-        const link = document.createElement("a");
-        link.href = data.url;
-        link.download = pdfName || "document.pdf"; // suggested filename
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (error) {
-      console.error("Error fetching signed URL:", error);
-    }
-  };
-
   const handleupdateFeedbackService = async (
     feedbackId: string,
     feedback: "positive" | "negative",
@@ -402,7 +442,7 @@ export function ChatDemoInterface({
       console.error("Failed to submit feedback:", error);
     }
   };
-
+  console.log(messages);
   return (
     <div className="flex flex-col relative">
       {/* Floating End Chat Button */}
@@ -446,87 +486,64 @@ export function ChatDemoInterface({
                     </div>
 
                     {/* Citations Accordion */}
-                    {message.isBot &&
-                      parseCitations(message.citations).filter((src) =>
-                        src.source.toLowerCase().includes(".pdf")
-                      ).length > 0 && (
-                        <div className="max-w-[80%] mt-3">
-                          <Accordion
-                            type="single"
-                            collapsible
-                            className="w-full"
+                    {message.isBot && message.citations && (
+                      <div className="max-w-[80%] mt-3">
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem
+                            value={`citations-${message.id}`}
+                            className="border rounded-lg"
                           >
-                            <AccordionItem
-                              value={`citations-${message.id}`}
-                              className="border rounded-lg"
-                            >
-                              <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                                <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                  <FileText className="w-4 h-4 text-blue-600" />
-                                  <span>
-                                    Citations (
-                                    {
-                                      parseCitations(message.citations).filter(
-                                        (src) =>
-                                          src.source
-                                            .toLowerCase()
-                                            .includes(".pdf")
-                                      ).length
-                                    }
-                                    )
-                                  </span>
-                                </div>
-                              </AccordionTrigger>
-                              <AccordionContent className="px-4 pb-3">
-                                <div className="space-y-2">
-                                  {parseCitations(message.citations)
-                                    .filter((src) =>
-                                      src.source.toLowerCase().includes(".pdf")
-                                    )
-                                    .map((citation, citationIndex) => (
-                                      <Card
-                                        key={citationIndex}
-                                        className="hover:shadow-md transition-shadow cursor-pointer group border-l-4 border-l-blue-500"
-                                        onClick={() =>
-                                          getSignedUrl(citation.source)
-                                        }
-                                      >
-                                        <CardContent className="p-3">
-                                          <div className="flex items-start gap-3">
-                                            <div className="flex-shrink-0 mt-0.5">
-                                              <FileText className="w-4 h-4 text-red-500" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                              <h5
-                                                className="text-sm max-w-[100px] font-medium text-gray-900 
+                            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                                <FileText className="w-4 h-4 text-blue-600" />
+                                <span>Citations (1)</span>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-4 pb-3">
+                              <div className="space-y-2">
+                                <Card className="hover:shadow-md transition-shadow cursor-pointer group border-l-4 border-l-blue-500">
+                                  <CardContent className="p-3">
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-shrink-0 mt-0.5">
+                                        <FileText className="w-4 h-4 text-red-500" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <h5
+                                          className="text-sm max-w-[100px] font-medium text-gray-900 
     truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
-                                              >
-                                                {citation.source
-                                                  .split("/")
-                                                  .pop()
-                                                  ?.replace(".pdf", "") ||
-                                                  "PDF Document"}
-                                              </h5>
-                                              <p className="text-xs text-gray-500 mt-1">
-                                                PDF Document • Click to view
-                                              </p>
-                                              {citation.snippet && (
-                                                <p className="text-xs text-gray-600 mt-2 line-clamp-2">
-                                                  {citation.snippet}
-                                                </p>
-                                              )}
-                                            </div>
-                                            <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    ))}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          </Accordion>
-                        </div>
-                      )}
+                                        >
+                                          {message.citations.source
+                                            .split("/")
+                                            .pop()
+                                            ?.replace(".pdf", "") ||
+                                            "PDF Document"}
+                                        </h5>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          Webpage • Click to view
+                                        </p>
+                                        {message.citations.executiveSummary && (
+                                          <p className="text-xs text-gray-600 mt-2 line-clamp-2">
+                                            {message.citations.executiveSummary}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <a
+                                        href={message.citations.source_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="group"
+                                      >
+                                        <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                                      </a>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </div>
+                    )}
 
                     {/* Feedback buttons for bot messages */}
                     {message.isBot && (

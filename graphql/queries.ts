@@ -120,6 +120,20 @@ export const askQuestionQuery = /* GraphQL */ `
         timestamp
         enhancement_applied
         documents_found
+        retrieved_docs {
+        content
+        score
+        source
+        location {
+          type
+        }
+        metadata {
+          x_amz_bedrock_kb_chunk_id
+          x_amz_bedrock_kb_data_source_id
+          x_amz_bedrock_kb_document_page_number
+          x_amz_bedrock_kb_source_uri
+        }
+      }
         top_sources {
           source
           score
