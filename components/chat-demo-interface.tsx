@@ -141,7 +141,7 @@ export function ChatDemoInterface({
           <div className="flex items-center gap-2">
             <Brain className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-700">
-              AI Confidence
+              Confidence Rating
             </span>
           </div>
           <Badge variant={badgeVariant} className="text-xs">
@@ -671,7 +671,7 @@ export function ChatDemoInterface({
                 <div className="flex justify-start">
                   <div className="bg-blue-600 text-white rounded-lg p-3 max-w-[80%]">
                     <div className="flex space-x-1 items-center">
-                      <span className="text-sm mr-2">AI is typing</span>
+                      <span className="text-sm mr-2">Thinking</span>
                       <div className="flex space-x-1">
                         <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
                         <div
