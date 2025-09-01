@@ -55,6 +55,7 @@ interface Message {
   isBot?: any;
   citations?: any;
   confidence?: any;
+  originalQuery?: string;
 }
 
 interface Citation {
@@ -70,7 +71,12 @@ interface ChatInterfaceProps {
   setMessages: any;
   setShowRating: any;
 }
-
+interface FeedbackItem {
+  messageId: string;
+  feedbackId: string;
+  content: string; // JSON string with { liked: boolean }
+  timestamp: string | number;
+}
 export function ChatDemoInterface({
   sessionId,
   messages,
@@ -85,7 +91,7 @@ export function ChatDemoInterface({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const dispatch = useChatDispatch();
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState([]);
+  const [feedback, setFeedback] = useState<FeedbackItem[]>([]); // <-- Define type
   const client = generateClient();
 
   Amplify.configure({
@@ -231,14 +237,14 @@ export function ChatDemoInterface({
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || sending) return;
-
+    const userId = `user_${sessionId}`;
     setSending(true);
     setInput(""); // Clear input immediately for better UX
     const userMessage: Message = {
       id: uuidv4(),
       newConversation: conversationId === null ? true : false,
       conversationId: conversationId,
-      userId: `user_${sessionId}`,
+      userId: userId,
       instructions: '{ "randomize_factor": "high" }',
       content: JSON.stringify({ query: text }),
       timestamp: new Date().toISOString(),
@@ -250,10 +256,17 @@ export function ChatDemoInterface({
     }, 500);
 
     try {
-      console.log(text);
+      const is_new = messages.length <= 1 ? true : false;
       const result = await client.graphql({
         query: askQuestionQuery,
-        variables: { query: text, session_id: sessionId },
+        variables: {
+          input: {
+            query: text,
+            session_id: sessionId,
+            user_id: userId,
+            is_new,
+          },
+        },
       });
       console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
@@ -262,7 +275,7 @@ export function ChatDemoInterface({
         const content = formatData.content;
 
         // Extract sections by labels
-        const extractSection = (label) => {
+        const extractSection = (label: any) => {
           const regex = new RegExp(
             `${label}\\s+(.*?)\\s+(?=(Scraping Method|Content Quality Score|Dynamic Content Detected|Source|Analysis Date|Content Items Found|Executive Summary|Key Themes Identified|Content Analysis|$))`,
             "s"
@@ -283,7 +296,7 @@ export function ChatDemoInterface({
           executiveSummary: extractSection("Executive Summary") || null,
           keyThemes: (extractSection("Key Themes Identified") || "")
             .split("•")
-            .map((t) => t.trim())
+            .map((t: any) => t.trim())
             .filter(Boolean),
           contentAnalysis: extractSection("Content Analysis") || null,
           source: formatData.source,
@@ -301,6 +314,7 @@ export function ChatDemoInterface({
           timestamp: new Date().toISOString(),
           citations: structuredContent,
           isBot: true,
+          originalQuery: text,
         };
 
         setMessages((prev: any) => [...prev, botMessage]);
@@ -375,13 +389,12 @@ export function ChatDemoInterface({
           limit: 100,
         },
       });
-      console.log(data);
-      const feedbackItems = (data?.data?.HbxlistFeedback?.items ?? []).filter(
-        Boolean
-      );
-      setFeedback(feedbackItems);
-      console.log(feedbackItems);
-      return feedbackItems;
+      if ("data" in data) {
+        const feedbackItems =
+          data.data?.HbxlistFeedback?.items.filter(Boolean) ?? [];
+        setFeedback(feedbackItems);
+        return feedbackItems;
+      }
     } catch (error) {
       console.error("Error fetching feedbacks:", error);
       return [];
@@ -391,7 +404,8 @@ export function ChatDemoInterface({
   const handleFeedback = async (
     messageId: string,
     feedback: "positive" | "negative",
-    botresponse: any
+    botresponse: any,
+    query: any
   ) => {
     try {
       const likedValue = feedback === "positive" ? true : false;
@@ -405,10 +419,10 @@ export function ChatDemoInterface({
         "message",
         null,
         null,
-        botresponse
+        botresponse,
+        query
       );
       getAllFeedbacks();
-      console.log(response);
     } catch (error) {
       console.error("Failed to submit feedback:", error);
     }
@@ -416,7 +430,7 @@ export function ChatDemoInterface({
 
   const handleupdateFeedbackService = async (
     feedbackId: string,
-    feedback: "positive" | "negative",
+    feedback: any,
     timestamp: any
   ) => {
     try {
@@ -443,7 +457,6 @@ export function ChatDemoInterface({
       console.error("Failed to submit feedback:", error);
     }
   };
-  console.log(messages);
   return (
     <div className="flex flex-col relative">
       {/* Floating End Chat Button */}
@@ -564,10 +577,9 @@ export function ChatDemoInterface({
                             const existing = feedback.find(
                               (f: any) => f.messageId === message.id
                             );
-                            const liked =
-                              feedback.length > 0
-                                ? JSON?.parse(existing?.content).liked
-                                : null;
+                            const liked = existing
+                              ? JSON.parse(existing.content).liked
+                              : null;
                             if (existing) {
                               if (liked) {
                                 handleupdateFeedbackService(
@@ -586,7 +598,8 @@ export function ChatDemoInterface({
                               handleFeedback(
                                 message.id,
                                 "positive",
-                                JSON.parse(message.content).response
+                                JSON.parse(message.content).response,
+                                message.originalQuery
                               );
                             }
                           }}
@@ -607,13 +620,14 @@ export function ChatDemoInterface({
                           size="sm"
                           onClick={() => {
                             const existing = feedback?.find(
-                              (f) => f.messageId === message.id
+                              (f: any) => f.messageId === message.id
                             );
-                            const liked =
-                              feedback.length > 0
-                                ? JSON?.parse(existing?.content).liked
-                                : null;
-                            console.log(existing);
+                            if (existing) {
+                              console.log(existing);
+                            }
+                            const liked = existing
+                              ? JSON.parse(existing.content).liked
+                              : null;
                             if (existing) {
                               if (!liked) {
                                 handleupdateFeedbackService(
@@ -632,13 +646,14 @@ export function ChatDemoInterface({
                               handleFeedback(
                                 message.id,
                                 "negative",
-                                JSON.parse(message.content).response
+                                JSON.parse(message.content).response,
+                                message.originalQuery
                               );
                             }
                           }}
                           className={`h-6 w-6 p-0 ${
                             feedback.find(
-                              (f) =>
+                              (f: any) =>
                                 f.messageId === message.id &&
                                 !JSON.parse(f.content).liked
                             )

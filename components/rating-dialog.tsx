@@ -50,6 +50,7 @@ export function RatingDialog({
         "session",
         feedback,
         rating,
+        null,
         null
       );
 
@@ -78,6 +79,7 @@ export function RatingDialog({
         "session",
         feedback,
         rating,
+        null,
         null
       );
       setCookie(

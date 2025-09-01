@@ -36,7 +36,8 @@ export async function handleWidgetFeedback(
   feedbackType: string,
   feedback: any,
   rating: any,
-  response: any
+  response: any,
+  query: any
 ): Promise<FeedbackResponse> {
   // Generate a unique ID for the feedback document
   const feedbackId = uuidv4();
@@ -53,13 +54,13 @@ export async function handleWidgetFeedback(
     rating,
     entityType: "feedback",
     type: "sentiment",
+    query,
     content: {
       liked,
       comment: "",
     },
     timestamp: new Date().toISOString(),
   };
-  console.log(item);
   const params = {
     TableName: "HBX_FEEDBACK",
     Item: marshall(item),
@@ -76,11 +77,10 @@ export async function handleWidgetFeedback(
 export async function handleupdateWidgetFeedback(
   feedbackId: any,
   userId: any,
-  liked: boolean,
+  liked: any,
   timestamp: any
 ) {
   const hasFeedback = liked === true || liked === false;
-
   if (!hasFeedback) {
     // No feedback (null or undefined) — delete the feedback record
     await client.send(
@@ -96,17 +96,20 @@ export async function handleupdateWidgetFeedback(
     return { success: true };
   }
 
-  // Create or update feedback
-  const item = marshall({
-    feedbackId,
-    timestamp,
-    liked,
-  });
-  console.log(item);
   await client.send(
-    new PutItemCommand({
+    new UpdateItemCommand({
       TableName: "HBX_FEEDBACK",
-      Item: item,
+      Key: marshall({
+        feedbackId,
+        timestamp,
+      }),
+      UpdateExpression: "SET content.liked = :liked",
+      ExpressionAttributeValues: marshall({
+        ":liked": liked,
+      }),
+      // Optional: Create the item if it doesn't exist
+      // Remove this line if you only want to update existing items
+      ReturnValues: "UPDATED_NEW",
     })
   );
 

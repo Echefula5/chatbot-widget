@@ -104,9 +104,10 @@ export const HbxlistFeedback = /* GraphQL */ `
     }
   }
 `;
+
 export const askQuestionQuery = /* GraphQL */ `
-  query AskQuestion($query: String!, $session_id: String!) {
-    askQuestion(query: $query, session_id: $session_id) {
+  query AskQuestion($input: AskQuestionInput!) {
+    askQuestion(input: $input) {
       success
       response
       metadata {
@@ -121,19 +122,19 @@ export const askQuestionQuery = /* GraphQL */ `
         enhancement_applied
         documents_found
         retrieved_docs {
-        content
-        score
-        source
-        location {
-          type
+          content
+          score
+          source
+          location {
+            type
+          }
+          metadata {
+            x_amz_bedrock_kb_chunk_id
+            x_amz_bedrock_kb_data_source_id
+            x_amz_bedrock_kb_document_page_number
+            x_amz_bedrock_kb_source_uri
+          }
         }
-        metadata {
-          x_amz_bedrock_kb_chunk_id
-          x_amz_bedrock_kb_data_source_id
-          x_amz_bedrock_kb_document_page_number
-          x_amz_bedrock_kb_source_uri
-        }
-      }
         top_sources {
           source
           score
@@ -400,6 +401,8 @@ export const listConversations = /* GraphQL */ `
     }
   }
 `;
+
+
 export const getMessage = /* GraphQL */ `
   query GetMessage($id: ID!, $timestamp: AWSDateTime) {
     getMessage(id: $id, timestamp: $timestamp) {
