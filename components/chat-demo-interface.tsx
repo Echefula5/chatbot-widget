@@ -268,11 +268,10 @@ export function ChatDemoInterface({
           },
         },
       });
-      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.metadata.retrieved_docs[0];
-        const content = formatData.content;
+        const content = formatData?.content;
 
         // Extract sections by labels
         const extractSection = (label: any) => {
@@ -280,7 +279,7 @@ export function ChatDemoInterface({
             `${label}\\s+(.*?)\\s+(?=(Scraping Method|Content Quality Score|Dynamic Content Detected|Source|Analysis Date|Content Items Found|Executive Summary|Key Themes Identified|Content Analysis|$))`,
             "s"
           );
-          const match = content.match(regex);
+          const match = content?.match(regex);
           return match ? match[1].trim() : null;
         };
 
@@ -291,7 +290,7 @@ export function ChatDemoInterface({
           contentQuality: extractSection("Content Quality Score") || null,
           dynamicDetected: extractSection("Dynamic Content Detected") || null,
           source_url:
-            (content.match(/Source:\s*(https?:\/\/[^\s]+)/) || [])[1] || null,
+            (content?.match(/Source:\s*(https?:\/\/[^\s]+)/) || [])[1] || null,
           analysisDate: extractSection("Analysis Date") || null,
           executiveSummary: extractSection("Executive Summary") || null,
           keyThemes: (extractSection("Key Themes Identified") || "")
@@ -299,7 +298,7 @@ export function ChatDemoInterface({
             .map((t: any) => t.trim())
             .filter(Boolean),
           contentAnalysis: extractSection("Content Analysis") || null,
-          source: formatData.source,
+          source: formatData?.source,
         };
         const botMessage: Message = {
           id: uuidv4(),
@@ -326,7 +325,6 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
-
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
@@ -445,14 +443,13 @@ export function ChatDemoInterface({
       }
       const userId = `user_${sessionId}`;
 
-      const response = await handleupdateWidgetFeedback(
+      await handleupdateWidgetFeedback(
         feedbackId,
         userId,
         likedValue,
         timestamp
       );
       getAllFeedbacks();
-      console.log(response);
     } catch (error) {
       console.error("Failed to submit feedback:", error);
     }
@@ -500,7 +497,7 @@ export function ChatDemoInterface({
                     </div>
 
                     {/* Citations Accordion */}
-                    {message.isBot && message.citations && (
+                    {message.isBot && message.citations.source_url && (
                       <div className="max-w-[80%] mt-3">
                         <Accordion type="single" collapsible className="w-full">
                           <AccordionItem
@@ -527,7 +524,7 @@ export function ChatDemoInterface({
     truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
                                         >
                                           {message.citations.source
-                                            .split("/")
+                                            ?.split("/")
                                             .pop()
                                             ?.replace(".pdf", "") ||
                                             "PDF Document"}
