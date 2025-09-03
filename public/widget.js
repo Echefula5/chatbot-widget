@@ -107,7 +107,18 @@
           positionStyles = "top: 24px !important; right: 24px !important;";
           break;
       }
-
+      if (this.isOpen === "maximize") {
+        return `width: 800px !important; height: 900px !important;
+         border: none !important;
+        margin: 0 !important;
+        padding: 6 !important;
+        background: transparent !important;
+        overflow: visible !important;
+        pointer-events: none !important;
+         position: fixed !important;
+        z-index: 2147483647 !important;
+        ${positionStyles}`;
+      }
       return `
         position: fixed !important;
         z-index: 2147483647 !important;
@@ -145,11 +156,18 @@
 
         console.log("📨 Received message:", type);
 
-        if (type === "WIDGET_OPEN" || type === "WIDGET_RESIZE") {
+        if (
+          type === "WIDGET_OPEN" ||
+          type === "WIDGET_RESIZE" ||
+          type === "WIDGET_RESTORE"
+        ) {
           self.isOpen = true;
           if (self.container) {
             self.container.style.cssText = self.getContainerStyles();
           }
+        } else if (type === "WIDGET_MAXIMIZE") {
+          self.isOpen = "maximize";
+          self.container.style.cssText = self.getContainerStyles();
         } else {
           self.isOpen = false;
           self.container.style.cssText = self.getContainerStyles();

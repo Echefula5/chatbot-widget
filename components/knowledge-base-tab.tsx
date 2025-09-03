@@ -16,8 +16,12 @@ interface KnowledgeItem {
   key_themes: any;
   category: string;
 }
-
-export function KnowledgeBaseTab() {
+interface knowledgeSourceInterfaceProps {
+  isMaximized: any;
+}
+export function KnowledgeBaseTab({
+  isMaximized,
+}: knowledgeSourceInterfaceProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -102,7 +106,11 @@ export function KnowledgeBaseTab() {
       </div>
 
       {searchResults.length > 0 || popularArticles.length > 0 ? (
-        <ScrollArea className="flex-1 max-h-[350px]">
+        <ScrollArea
+          className={
+            isMaximized ? "flex-1 max-h-[660px] " : "flex-1 max-h-[350px]"
+          }
+        >
           {searchResults.length > 0 ? (
             <div className="space-y-3">
               <h3 className="font-medium text-gray-900 text-sm">
@@ -161,7 +169,7 @@ export function KnowledgeBaseTab() {
               <h3 className="font-medium text-gray-900 text-sm">
                 Popular Articles
               </h3>
-              {popularArticles.slice(0, 3).map((item) => {
+              {popularArticles.slice(0, isMaximized ? 8 : 3).map((item) => {
                 const path = item?.url?.split("/").pop(); // "advisory-working-groups"
 
                 // Replace all dashes with spaces

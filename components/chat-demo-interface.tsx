@@ -6,6 +6,16 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -70,18 +80,21 @@ interface ChatInterfaceProps {
   messages: any;
   setMessages: any;
   setShowRating: any;
+  isMaximized: any;
 }
 interface FeedbackItem {
   messageId: string;
   feedbackId: string;
   content: string; // JSON string with { liked: boolean }
   timestamp: string | number;
+  textFeedback: any;
 }
 export function ChatDemoInterface({
   sessionId,
   messages,
   setMessages,
   setShowRating,
+  isMaximized,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -93,7 +106,35 @@ export function ChatDemoInterface({
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]); // <-- Define type
   const client = generateClient();
+  const [feedbackModal, setFeedbackModal] = useState({
+    isOpen: false,
+    messageId: "",
+    currentFeedback: null as "positive" | "negative" | null,
+    textFeedback: "",
+    existingFeedbackId: null as string | null,
+    botResponse: "",
+    originalQuery: "",
+  });
+  const openFeedbackModal = (
+    messageId: string,
+    feedbackType: "positive" | "negative",
+    botResponse: string,
+    originalQuery: string
+  ) => {
+    const existingFeedback = feedback.find(
+      (f: any) => f.messageId === messageId
+    );
 
+    setFeedbackModal({
+      isOpen: true,
+      messageId,
+      currentFeedback: feedbackType,
+      textFeedback: existingFeedback?.textFeedback || "",
+      existingFeedbackId: existingFeedback?.feedbackId || null,
+      botResponse,
+      originalQuery,
+    });
+  };
   Amplify.configure({
     API: {
       GraphQL: {
@@ -187,53 +228,6 @@ export function ChatDemoInterface({
     setTimeout(scrollToBottom, 100);
   }, [messages, isTyping]);
 
-  // function formatDocument(doc) {
-  //   let parsedContent = doc.content;
-  //   let sourceUrl = null;
-  //   let isValidJson = false;
-
-  //   // Try to parse content as JSON
-  //   try {
-  //     if (typeof doc.content === "string") {
-  //       // Handle incomplete JSON by extracting source_url with regex first
-  //       const sourceUrlMatch = doc.content.match(/"source_url":\s*"([^"]+)"/);
-  //       if (sourceUrlMatch) {
-  //         sourceUrl = sourceUrlMatch[1];
-  //       }
-
-  //       // Try to parse as JSON (may fail due to truncation)
-  //       if (doc.content.trim().startsWith("{")) {
-  //         parsedContent = JSON.parse(doc.content);
-  //         isValidJson = true;
-  //         sourceUrl = parsedContent.source_url; // Override with parsed value
-  //       }
-  //     }
-  //   } catch (e) {
-  //     // JSON parsing failed, but we may have extracted source_url via regex
-  //     console.log("JSON parsing failed, using regex extraction");
-  //   }
-  //   console.log(parsedContent);
-  //   return {
-  //     index: doc.index || 0,
-  //     score: doc.score,
-  //     source: doc.source,
-  //     location_type: doc.location?.type,
-  //     source_url: sourceUrl,
-  //     extraction_date: isValidJson ? parsedContent.extraction_date : null,
-  //     scraping_method: isValidJson ? parsedContent.scraping_method : null,
-  //     summary: isValidJson ? parsedContent.summary : null,
-  //     articles: isValidJson ? parsedContent.articles : null,
-  //     isValidJson: isValidJson,
-  //     hasSourceUrl: !!sourceUrl,
-  //     contentType: typeof parsedContent,
-  //     rawContent: doc.content.substring(0, 100) + "...", // First 100 chars for preview
-  //   };
-  // }
-
-  // // Format the document
-  // const formattedDoc = formatDocument(formatData);
-  // console.log(formattedDoc);
-  // Filter only documents that have source_url
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || sending) return;
@@ -268,6 +262,7 @@ export function ChatDemoInterface({
           },
         },
       });
+      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.metadata.retrieved_docs[0];
@@ -301,7 +296,7 @@ export function ChatDemoInterface({
           source: formatData?.source,
         };
         const botMessage: Message = {
-          id: uuidv4(),
+          id: result.data.askQuestion.metadata.messageId,
           newConversation: conversationId === null,
           conversationId,
           userId: `user_${sessionId}`,
@@ -399,57 +394,57 @@ export function ChatDemoInterface({
     }
   };
 
-  const handleFeedback = async (
-    messageId: string,
-    feedback: "positive" | "negative",
-    botresponse: any,
-    query: any
-  ) => {
+  console.log(feedback);
+  const handleFeedbackSubmit = async () => {
     try {
-      const likedValue = feedback === "positive" ? true : false;
-      const userId = `user_${sessionId}`;
-
-      const response = await handleWidgetFeedback(
+      const {
         messageId,
-        userId,
-        likedValue,
-        sessionId,
-        "message",
-        null,
-        null,
-        botresponse,
-        query
-      );
-      getAllFeedbacks();
-    } catch (error) {
-      console.error("Failed to submit feedback:", error);
-    }
-  };
+        currentFeedback,
+        textFeedback,
+        existingFeedbackId,
+        botResponse,
+        originalQuery,
+      } = feedbackModal;
 
-  const handleupdateFeedbackService = async (
-    feedbackId: string,
-    feedback: any,
-    timestamp: any
-  ) => {
-    try {
-      let likedValue: boolean | null;
+      if (!currentFeedback) return;
 
-      if (feedback === "positive") {
-        likedValue = true;
-      } else if (feedback === "negative") {
-        likedValue = false;
-      } else {
-        likedValue = null;
-      }
+      const likedValue = currentFeedback === "positive" ? true : false;
       const userId = `user_${sessionId}`;
 
-      await handleupdateWidgetFeedback(
-        feedbackId,
-        userId,
-        likedValue,
-        timestamp
-      );
+      if (existingFeedbackId) {
+        // Update existing feedback
+        await handleupdateWidgetFeedback(
+          existingFeedbackId,
+          userId,
+          likedValue,
+          Date.now(),
+          textFeedback // Pass text feedback if your API supports it
+        );
+      } else {
+        // Create new feedback
+        await handleWidgetFeedback(
+          messageId,
+          userId,
+          likedValue,
+          sessionId,
+          "message",
+          textFeedback,
+          null,
+          botResponse,
+          originalQuery
+        );
+      }
+
       getAllFeedbacks();
+      setFeedbackModal({
+        isOpen: false,
+        messageId: "",
+        currentFeedback: null,
+        textFeedback: "",
+        existingFeedbackId: null,
+        botResponse: "",
+        originalQuery: "",
+      });
     } catch (error) {
       console.error("Failed to submit feedback:", error);
     }
@@ -459,7 +454,13 @@ export function ChatDemoInterface({
       {/* Floating End Chat Button */}
 
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        <div className="flex flex-col max-h-[360px] h-[380px] border rounded overflow-hidden">
+        <div
+          className={
+            isMaximized
+              ? "flex flex-col max-h-[620px] h-[620px] border rounded overflow-hidden"
+              : "flex flex-col max-h-[320px] h-[330px] border rounded overflow-hidden"
+          }
+        >
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
               {messages.map((message: any, index: any) => {
@@ -478,8 +479,7 @@ export function ChatDemoInterface({
                         }`}
                       >
                         {renderMessageContent(message)}
-                        {JSON.parse(message.content).response ===
-                          "Sorry, I am unable to help you with this query right now. Connecting with a support agent may help." && (
+                        {message.isBot && !message.citations.source_url && (
                           <a
                             href="https://metrohealthlink.com/contact" // <-- Change this to your actual support link
                             target="_blank"
@@ -571,34 +571,12 @@ export function ChatDemoInterface({
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            const existing = feedback.find(
-                              (f: any) => f.messageId === message.id
+                            openFeedbackModal(
+                              message.id,
+                              "positive",
+                              JSON.parse(message.content).response,
+                              message.originalQuery
                             );
-                            const liked = existing
-                              ? JSON.parse(existing.content).liked
-                              : null;
-                            if (existing) {
-                              if (liked) {
-                                handleupdateFeedbackService(
-                                  existing.feedbackId,
-                                  null,
-                                  existing.timestamp
-                                );
-                              } else {
-                                handleupdateFeedbackService(
-                                  existing.feedbackId,
-                                  "positive",
-                                  existing.timestamp
-                                );
-                              }
-                            } else {
-                              handleFeedback(
-                                message.id,
-                                "positive",
-                                JSON.parse(message.content).response,
-                                message.originalQuery
-                              );
-                            }
                           }}
                           className={`h-6 w-6 p-0 ${
                             feedback.find(
@@ -616,37 +594,12 @@ export function ChatDemoInterface({
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            const existing = feedback?.find(
-                              (f: any) => f.messageId === message.id
+                            openFeedbackModal(
+                              message.id,
+                              "negative",
+                              JSON.parse(message.content).response,
+                              message.originalQuery
                             );
-                            if (existing) {
-                              console.log(existing);
-                            }
-                            const liked = existing
-                              ? JSON.parse(existing.content).liked
-                              : null;
-                            if (existing) {
-                              if (!liked) {
-                                handleupdateFeedbackService(
-                                  existing.feedbackId,
-                                  null,
-                                  existing.timestamp
-                                );
-                              } else {
-                                handleupdateFeedbackService(
-                                  existing.feedbackId,
-                                  "negative",
-                                  existing.timestamp
-                                );
-                              }
-                            } else {
-                              handleFeedback(
-                                message.id,
-                                "negative",
-                                JSON.parse(message.content).response,
-                                message.originalQuery
-                              );
-                            }
                           }}
                           className={`h-6 w-6 p-0 ${
                             feedback.find(
@@ -712,6 +665,118 @@ export function ChatDemoInterface({
           </Button>
         </div>
       </div>
+      {isMaximized ? (
+        <h2 className=" text-center">
+          AI can make mistakes. Consider checking important information for
+          accuracy.
+        </h2>
+      ) : (
+        <p className=" text-xs text-center">
+          {" "}
+          AI can make mistakes. Consider checking important information for
+          accuracy.
+        </p>
+      )}
+
+      <Dialog
+        open={feedbackModal.isOpen}
+        onOpenChange={(open) =>
+          setFeedbackModal((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <DialogContent className="sm:max-w-[20rem]">
+          <DialogHeader>
+            <DialogTitle>
+              {feedbackModal.currentFeedback === "positive"
+                ? "Positive"
+                : "Negative"}{" "}
+              Feedback
+            </DialogTitle>
+            <DialogDescription>
+              {feedbackModal.existingFeedbackId
+                ? "Edit your feedback for this response."
+                : "Help us improve by sharing your thoughts about this response."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Rating:</span>
+              <div className="flex space-x-1">
+                <Button
+                  variant={
+                    feedbackModal.currentFeedback === "positive"
+                      ? "default"
+                      : "outline"
+                  }
+                  size="sm"
+                  onClick={() =>
+                    setFeedbackModal((prev) => ({
+                      ...prev,
+                      currentFeedback: "positive",
+                    }))
+                  }
+                  className="h-8"
+                >
+                  <ThumbsUp className="w-3 h-3 mr-1" />
+                  Helpful
+                </Button>
+                <Button
+                  variant={
+                    feedbackModal.currentFeedback === "negative"
+                      ? "default"
+                      : "outline"
+                  }
+                  size="sm"
+                  onClick={() =>
+                    setFeedbackModal((prev) => ({
+                      ...prev,
+                      currentFeedback: "negative",
+                    }))
+                  }
+                  className="h-8"
+                >
+                  <ThumbsDown className="w-3 h-3 mr-1" />
+                  Not Helpful
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Additional Comments (Optional)
+              </label>
+              <Textarea
+                placeholder="Tell us more about your experience with this response..."
+                value={feedbackModal.textFeedback}
+                onChange={(e) =>
+                  setFeedbackModal((prev) => ({
+                    ...prev,
+                    textFeedback: e.target.value,
+                  }))
+                }
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setFeedbackModal((prev) => ({ ...prev, isOpen: false }))
+              }
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleFeedbackSubmit}>
+              {feedbackModal.existingFeedbackId
+                ? "Update Feedback"
+                : "Submit Feedback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

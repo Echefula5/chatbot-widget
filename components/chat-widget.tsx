@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MessageCircle, Home, Book, X, Minus } from "lucide-react";
+import {
+  MessageCircle,
+  Home,
+  Book,
+  X,
+  Minus,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import { ChatInterface } from "./chat-interface";
 import { WelcomeTab } from "./welcome-tab";
 import { KnowledgeBaseTab } from "./knowledge-base-tab";
@@ -33,12 +41,25 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
   const [showRating, setShowRating] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   // Notify parent window of state changes
   const notifyParent = (type: string, data?: any) => {
     window.parent.postMessage({ type, data }, "*");
   };
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
+    const handleStatus = (event: MessageEvent) => {
+      console.log(event);
+      if (event.data.type === "WIDGET_STATUS") {
+        console.log("Widget status:", event.data.data);
+      }
+    };
+    console.log("echeß");
+    window.addEventListener("message", handleStatus);
+    return () => window.removeEventListener("message", handleStatus);
+  }, []);
   // Handle messages from parent window
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -120,7 +141,24 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
       properties: { widgetId, sessionId },
     });
   };
+  const handleMaximize = () => {
+    const newMaximizedState = !isMaximized;
+    setIsMaximized(newMaximizedState);
 
+    if (newMaximizedState) {
+      notifyParent("WIDGET_MAXIMIZE");
+
+      // Resize to full screen
+    } else {
+      notifyParent("WIDGET_RESTORE");
+      notifyParent("TRACK_EVENT", {
+        event: "widget_restored",
+        properties: { widgetId, sessionId },
+      });
+      // Resize back to normal
+      notifyParent("WIDGET_RESIZE", { width: 400, height: 600 });
+    }
+  };
   // Apply theme styles
   const themeClass = theme === "dark" ? "" : "";
 
@@ -154,6 +192,22 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
             </span>
           </div>
           <div className="flex items-center space-x-1">
+            {" "}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMaximize}
+              className="text-white hover:bg-blue-700 w-8 h-8 p-0"
+              aria-label={
+                isMaximized ? "Restore chat widget" : "Maximize chat widget"
+              }
+            >
+              {isMaximized ? (
+                <Minimize2 className="w-4 h-4" />
+              ) : (
+                <Maximize2 className="w-4 h-4" />
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -207,7 +261,10 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
 
           <div className="flex-1 overflow-hidden">
             <TabsContent value="welcome" className="h-full m-0">
-              <WelcomeTab onStartChat={() => setActiveTab("chat")} />
+              <WelcomeTab
+                onStartChat={() => setActiveTab("chat")}
+                isMaximized={isMaximized}
+              />
             </TabsContent>
 
             <TabsContent value="chat" className="h-full m-0">
@@ -216,11 +273,12 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
                 messages={messages}
                 setMessages={setMessages}
                 setShowRating={setShowRating}
+                isMaximized={isMaximized}
               />
             </TabsContent>
 
             <TabsContent value="knowledge" className="h-full m-0">
-              <KnowledgeBaseTab />
+              <KnowledgeBaseTab isMaximized={isMaximized} />
             </TabsContent>
           </div>
         </Tabs>

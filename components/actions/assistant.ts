@@ -78,7 +78,8 @@ export async function handleupdateWidgetFeedback(
   feedbackId: any,
   userId: any,
   liked: any,
-  timestamp: any
+  timestamp: any,
+  feedback: any
 ) {
   const hasFeedback = liked === true || liked === false;
   if (!hasFeedback) {
@@ -103,12 +104,12 @@ export async function handleupdateWidgetFeedback(
         feedbackId,
         timestamp,
       }),
-      UpdateExpression: "SET content.liked = :liked",
+      UpdateExpression:
+        "SET content.liked = :liked, content.feedback = :feedback",
       ExpressionAttributeValues: marshall({
         ":liked": liked,
+        ":feedback": feedback, // <-- new value you want to update
       }),
-      // Optional: Create the item if it doesn't exist
-      // Remove this line if you only want to update existing items
       ReturnValues: "UPDATED_NEW",
     })
   );

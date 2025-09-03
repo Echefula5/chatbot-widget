@@ -50,7 +50,7 @@ export default function WidgetPage() {
   }, [config.id]);
 
   return (
-    <div className=" h-[600px] absolute bottom-0 w-full p-4 overflow-hidden bg-transparent">
+    <div className=" h-full absolute bottom-0 w-full p-4 overflow-hidden bg-transparent">
       <ChatWidget widgetId={config.id} theme={config.theme} />
     </div>
   );

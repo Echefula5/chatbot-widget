@@ -95,6 +95,7 @@ export const HbxlistFeedback = /* GraphQL */ `
         conversationId
         timestamp
         messageId
+        feedback
         modelId
         type
         __typename
@@ -119,6 +120,7 @@ export const askQuestionQuery = /* GraphQL */ `
         processing_time_ms
         session_id
         timestamp
+        messageId
         enhancement_applied
         documents_found
         retrieved_docs {
@@ -401,7 +403,6 @@ export const listConversations = /* GraphQL */ `
     }
   }
 `;
-
 
 export const getMessage = /* GraphQL */ `
   query GetMessage($id: ID!, $timestamp: AWSDateTime) {
