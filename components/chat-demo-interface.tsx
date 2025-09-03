@@ -262,12 +262,14 @@ export function ChatDemoInterface({
           },
         },
       });
-      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
-        const formatData = result.data.askQuestion.metadata.retrieved_docs[0];
-        const content = formatData?.content;
+        const formatData = result.data.askQuestion.metadata.retrieved_docs;
 
+        const contentMatches = formatData?.find((item: any) =>
+          item.content.includes("Web Content Analysis Report")
+        );
+        const content = contentMatches.content;
         // Extract sections by labels
         const extractSection = (label: any) => {
           const regex = new RegExp(
@@ -394,7 +396,6 @@ export function ChatDemoInterface({
     }
   };
 
-  console.log(feedback);
   const handleFeedbackSubmit = async () => {
     try {
       const {
@@ -523,11 +524,7 @@ export function ChatDemoInterface({
                                           className="text-sm max-w-[100px] font-medium text-gray-900 
     truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
                                         >
-                                          {message.citations.source
-                                            ?.split("/")
-                                            .pop()
-                                            ?.replace(".pdf", "") ||
-                                            "PDF Document"}
+                                          Web Content Analysis Report
                                         </h5>
                                         <a
                                           className="text-xs text-gray-500 mt-1"
