@@ -114,6 +114,7 @@ export const askQuestionQuery = /* GraphQL */ `
       metadata {
         intent
         intent_confidence
+        intent_analysis
         sentiment
         complexity_level
         confidence

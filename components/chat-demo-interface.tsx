@@ -66,6 +66,7 @@ interface Message {
   citations?: any;
   confidence?: any;
   originalQuery?: string;
+  intent?: string;
 }
 
 interface Citation {
@@ -262,6 +263,7 @@ export function ChatDemoInterface({
           },
         },
       });
+      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.metadata.retrieved_docs;
@@ -307,6 +309,7 @@ export function ChatDemoInterface({
             response: result.data.askQuestion.response,
             confidence: result.data.askQuestion.metadata.confidence,
           }),
+          intent: result.data.askQuestion.metadata.intent_analysis,
           timestamp: new Date().toISOString(),
           citations: structuredContent,
           isBot: true,
@@ -465,6 +468,7 @@ export function ChatDemoInterface({
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
               {messages.map((message: any, index: any) => {
+                console.log(message);
                 return (
                   <div key={index}>
                     <div
@@ -480,20 +484,25 @@ export function ChatDemoInterface({
                         }`}
                       >
                         {renderMessageContent(message)}
-                        {message.isBot && !message.citations.source_url && (
-                          <a
-                            href="https://metrohealthlink.com/contact" // <-- Change this to your actual support link
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Button
-                              size="sm"
-                              className="mt-4 bg-white text-blue-600 border border-blue-600 hover:bg-blue-50 hover:border-blue-700 hover:text-blue-700 transition-colors rounded-md shadow-sm"
+                        {message.isBot &&
+                          !message.citations.source_url &&
+                          !(
+                            message.intent?.includes("greeting") ||
+                            message.intent?.includes("closing")
+                          ) && (
+                            <a
+                              href="https://metrohealthlink.com/contact" // <-- Change this to your actual support link
+                              target="_blank"
+                              rel="noopener noreferrer"
                             >
-                              Connect with Support
-                            </Button>
-                          </a>
-                        )}
+                              <Button
+                                size="sm"
+                                className="mt-4 bg-white text-blue-600 border border-blue-600 hover:bg-blue-50 hover:border-blue-700 hover:text-blue-700 transition-colors rounded-md shadow-sm"
+                              >
+                                Connect with Support
+                              </Button>
+                            </a>
+                          )}
                       </div>
                     </div>
 
