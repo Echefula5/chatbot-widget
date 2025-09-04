@@ -269,7 +269,7 @@ export function ChatDemoInterface({
         const contentMatches = formatData?.find((item: any) =>
           item.content.includes("Web Content Analysis Report")
         );
-        const content = contentMatches.content;
+        const content = contentMatches?.content;
         // Extract sections by labels
         const extractSection = (label: any) => {
           const regex = new RegExp(
