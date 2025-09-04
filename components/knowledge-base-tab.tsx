@@ -48,27 +48,6 @@ export function KnowledgeBaseTab({
     setSearchResults(filtered);
     setIsSearching(false);
   };
-  const getSignedUrl = async (pdf_s3_url: any) => {
-    const pdfName = pdf_s3_url.split("/").pop();
-
-    try {
-      const response = await fetch(`/api/get-signed-document`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fileName: `reports/${pdfName}`,
-        }),
-      });
-
-      const data = await response.json();
-      console.log(data);
-      // setSignedUrl(data.url);
-    } catch (error) {
-      console.error("Error fetching signed URL:", error);
-    }
-  };
 
   const getAllListofSources = async () => {
     const res = await fetchAllKnowledgeSources(1 + 1, 101);
@@ -108,7 +87,7 @@ export function KnowledgeBaseTab({
       {searchResults.length > 0 || popularArticles.length > 0 ? (
         <ScrollArea
           className={
-            isMaximized ? "flex-1 max-h-[660px] " : "flex-1 max-h-[350px]"
+            isMaximized ? "flex-1 max-h-[70vh]" : "flex-1 max-h-[350px]"
           }
         >
           {searchResults.length > 0 ? (

@@ -108,7 +108,7 @@
           break;
       }
       if (this.isOpen === "maximize") {
-        return `width: 800px !important; height: 900px !important;
+        return `width: 800px !important; height: 90vh !important;
          border: none !important;
         margin: 0 !important;
         padding: 6 !important;
