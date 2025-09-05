@@ -359,11 +359,16 @@ export function ChatDemoInterface({
     return (
       <div className="whitespace-pre-wrap">
         {responseText}
-        {message.isBot && confidenceValue !== null && (
-          <div className="text-xs text-gray-400 mt-1">
-            {renderConfidenceIndicator(message)}
-          </div>
-        )}
+        {message.isBot &&
+          confidenceValue !== null &&
+          !(
+            message.intent?.includes("greeting") ||
+            message.intent?.includes("closing")
+          ) && (
+            <div className="text-xs text-gray-400 mt-1">
+              {renderConfidenceIndicator(message)}
+            </div>
+          )}
       </div>
     );
   };
