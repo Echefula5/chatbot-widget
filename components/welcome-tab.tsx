@@ -79,7 +79,7 @@ export function WelcomeTab({ onStartChat, isMaximized }: WelcomeTabProps) {
 
       <div className="mt-auto pt-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">
-          Powered by Perceptive AI • RAG Technology
+          Powered by PerceptiveAI • RAG Technology
         </p>
       </div>
     </div>

@@ -363,7 +363,8 @@ export function ChatDemoInterface({
           confidenceValue !== null &&
           !(
             message.intent?.includes("greeting") ||
-            message.intent?.includes("closing")
+            message.intent?.includes("closing") ||
+            message.intent?.includes("out_of_domain")
           ) && (
             <div className="text-xs text-gray-400 mt-1">
               {renderConfidenceIndicator(message)}
@@ -678,14 +679,26 @@ export function ChatDemoInterface({
       </div>
       {isMaximized ? (
         <h2 className=" text-center">
-          AI can make mistakes. Consider checking important information for
-          accuracy.
+          Smart Assistant can make mistakes. Consider checking important
+          information for accuracy.{" "}
+          <a
+            className=" font-bold"
+            href="https://metrohealthlink.com/blog-single/why-smart-assistants-can-make-mistakes"
+          >
+            Learn more
+          </a>
         </h2>
       ) : (
         <p className=" text-xs text-center">
           {" "}
-          AI can make mistakes. Consider checking important information for
-          accuracy.
+          Smart Assistant can make mistakes. Consider checking important
+          information for accuracy.{" "}
+          <a
+            className=" font-bold"
+            href="https://metrohealthlink.com/blog-single/why-smart-assistants-can-make-mistakes"
+          >
+            Learn more
+          </a>
         </p>
       )}
 
