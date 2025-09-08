@@ -683,6 +683,7 @@ export function ChatDemoInterface({
           information for accuracy.{" "}
           <a
             className=" font-bold"
+            target="_blank"
             href="https://metrohealthlink.com/blog-single/why-smart-assistants-can-make-mistakes"
           >
             Learn more
