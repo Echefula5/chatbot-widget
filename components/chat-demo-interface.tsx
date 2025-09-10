@@ -52,7 +52,7 @@ import {
 } from "./actions/assistant";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { getCookie } from "cookies-next/client";
+import { getCookie, setCookie } from "cookies-next/client";
 
 interface Message {
   id?: any;
@@ -67,6 +67,7 @@ interface Message {
   confidence?: any;
   originalQuery?: string;
   intent?: string;
+  session_id: string;
 }
 
 interface Citation {
@@ -228,12 +229,21 @@ export function ChatDemoInterface({
     // Use setTimeout to ensure DOM is updated after accordion renders
     setTimeout(scrollToBottom, 100);
   }, [messages, isTyping]);
-
+  useEffect(() => {
+    if (messages && messages.length > 0) {
+      setCookie("metro_link_messages", JSON.stringify({ messages }), {
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: "/",
+      });
+    }
+  }, [messages]);
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || sending) return;
     const userId = `user_${sessionId}`;
     setSending(true);
+    const existingSessionId =
+      messages?.length > 0 ? messages[0]?.session_id : sessionId;
     setInput(""); // Clear input immediately for better UX
     const userMessage: Message = {
       id: uuidv4(),
@@ -243,6 +253,7 @@ export function ChatDemoInterface({
       instructions: '{ "randomize_factor": "high" }',
       content: JSON.stringify({ query: text }),
       timestamp: new Date().toISOString(),
+      session_id: existingSessionId,
     };
     setMessages((prev: any) => [...prev, userMessage]);
 
@@ -251,19 +262,18 @@ export function ChatDemoInterface({
     }, 500);
 
     try {
-      const is_new = messages.length <= 1 ? true : false;
+      const is_new = messages.length === 0 ? true : false;
       const result = await client.graphql({
         query: askQuestionQuery,
         variables: {
           input: {
             query: text,
-            session_id: sessionId,
+            session_id: existingSessionId,
             user_id: userId,
             is_new,
           },
         },
       });
-      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.metadata.retrieved_docs;
@@ -310,6 +320,7 @@ export function ChatDemoInterface({
             confidence: result.data.askQuestion.metadata.confidence,
           }),
           intent: result.data.askQuestion.metadata.intent_analysis,
+          session_id: result.data.askQuestion.metadata.session_id,
           timestamp: new Date().toISOString(),
           citations: structuredContent,
           isBot: true,
@@ -474,7 +485,6 @@ export function ChatDemoInterface({
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
               {messages.map((message: any, index: any) => {
-                console.log(message);
                 return (
                   <div key={index}>
                     <div
