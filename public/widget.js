@@ -169,7 +169,7 @@
           self.isOpen = "maximize";
           self.container.style.cssText = self.getContainerStyles();
         } else {
-          self.isOpen = false;
+          self.isOpen = true;
           self.container.style.cssText = self.getContainerStyles();
         }
 
