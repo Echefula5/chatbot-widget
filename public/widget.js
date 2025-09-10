@@ -264,21 +264,6 @@
         }
 
         // Also send to our own analytics endpoint
-        fetch(`${config.baseUrl}/api/analytics`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            event: eventName,
-            properties: {
-              widgetId: config.widgetId,
-              url: window.location.href,
-              timestamp: new Date().toISOString(),
-              ...properties,
-            },
-          }),
-        }).catch(() => {}); // Fail silently
       } catch (error) {
         // Fail silently - don't break parent site
       }

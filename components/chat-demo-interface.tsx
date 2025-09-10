@@ -232,8 +232,10 @@ export function ChatDemoInterface({
   useEffect(() => {
     if (messages && messages.length > 0) {
       setCookie("metro_link_messages", JSON.stringify({ messages }), {
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
         path: "/",
+        sameSite: "none", // allow cross-site cookie
+        secure: true, // required when SameSite=None
       });
     }
   }, [messages]);
@@ -241,6 +243,7 @@ export function ChatDemoInterface({
     const text = messageText || input.trim();
     if (!text || sending) return;
     const userId = `user_${sessionId}`;
+
     setSending(true);
     const existingSessionId =
       messages?.length > 0 ? messages[0]?.session_id : sessionId;
@@ -257,11 +260,9 @@ export function ChatDemoInterface({
     };
     setMessages((prev: any) => [...prev, userMessage]);
 
-    setTimeout(() => {
-      setIsTyping(true);
-    }, 500);
-
     try {
+      setIsTyping(true);
+
       const is_new = messages.length === 0 ? true : false;
       const result = await client.graphql({
         query: askQuestionQuery,
