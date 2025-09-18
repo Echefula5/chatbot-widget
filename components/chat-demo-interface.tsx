@@ -551,7 +551,7 @@ export function ChatDemoInterface({
   return (
     <div className="flex flex-col relative">
       {/* Floating End Chat Button */}
-      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+      <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
             <Brain className="w-5 h-5 text-white" />
@@ -565,7 +565,7 @@ export function ChatDemoInterface({
         <div
           className={
             isMaximized
-              ? "flex flex-col max-h-[65vh] h-[65vh] border rounded overflow-hidden"
+              ? "flex flex-col max-h-[52vh] h-[52vh] border rounded overflow-hidden"
               : "flex flex-col max-h-[320px] h-[330px] border rounded overflow-hidden"
           }
         >
