@@ -124,7 +124,7 @@
         z-index: 2147483647 !important;
         ${positionStyles}
         width: ${this.isOpen ? "400px" : "100px"} !important;
-        height: ${this.isOpen ? "680px" : "80px"} !important;
+        height: ${this.isOpen ? "620px" : "80px"} !important;
         border: none !important;
         margin: 0 !important;
         padding: 6 !important;

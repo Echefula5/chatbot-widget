@@ -566,7 +566,7 @@ export function ChatDemoInterface({
           className={
             isMaximized
               ? "flex flex-col max-h-[52vh] h-[52vh] border rounded overflow-hidden"
-              : "flex flex-col max-h-[320px] h-[330px] border rounded overflow-hidden"
+              : "flex flex-col max-h-[280px] h-[290px] border rounded overflow-hidden"
           }
         >
           <div className="flex-1 overflow-y-auto p-4">
