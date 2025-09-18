@@ -134,7 +134,13 @@ function LanguageSelector({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className="gap-2">
-          {currentLanguage?.flag} {currentLanguage?.name}
+          {currentLanguage?.flag}
+          {currentLanguage?.name}
+          <ChevronDown
+            className={`w-4 h-4 transition-transform ${
+              open ? "rotate-180" : "rotate-0"
+            }`}
+          />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-48 p-2">
@@ -143,7 +149,7 @@ function LanguageSelector({
             key={lang.code}
             onClick={() => {
               setLanguage(lang.code);
-              setOpen(false); // ✅ close the popover after selection
+              setOpen(false); // close after selection
             }}
             className={`px-3 py-2 cursor-pointer flex items-center gap-2 rounded ${
               lang.code === language
