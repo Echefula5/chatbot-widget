@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -32,6 +38,12 @@ import {
   ChevronDown,
   X,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Amplify } from "aws-amplify";
 import { generateClient } from "aws-amplify/api";
 import { sendUserMessage } from "@/graphql/mutations";
@@ -91,6 +103,62 @@ interface FeedbackItem {
   timestamp: string | number;
   textFeedback: any;
 }
+type Language = "english" | "spanish" | "amharic" | "french";
+
+interface LanguageOption {
+  code: Language;
+  name: string;
+  flag: string;
+}
+
+const languages: LanguageOption[] = [
+  { code: "english", name: "English", flag: "🇺🇸" },
+  { code: "spanish", name: "Español", flag: "🇪🇸" },
+  { code: "amharic", name: "አማርኛ", flag: "🇪🇹" },
+  { code: "french", name: "Français", flag: "🇫🇷" },
+];
+
+// Language Selector Component
+function LanguageSelector({
+  language,
+  setLanguage,
+}: {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const currentLanguage = languages.find((lang) => lang.code === language);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          {currentLanguage?.flag} {currentLanguage?.name}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 p-2">
+        {languages.map((lang) => (
+          <div
+            key={lang.code}
+            onClick={() => {
+              setLanguage(lang.code);
+              setOpen(false); // ✅ close the popover after selection
+            }}
+            className={`px-3 py-2 cursor-pointer flex items-center gap-2 rounded ${
+              lang.code === language
+                ? "bg-blue-50 text-blue-600"
+                : "hover:bg-gray-50"
+            }`}
+          >
+            {lang.flag} {lang.name}
+          </div>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function ChatDemoInterface({
   sessionId,
   messages,
@@ -105,6 +173,7 @@ export function ChatDemoInterface({
   const [expandedCitation, setExpandedCitation] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const dispatch = useChatDispatch();
+  const [language, setLanguage] = useState<Language>("english");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]); // <-- Define type
   const client = generateClient();
@@ -272,6 +341,7 @@ export function ChatDemoInterface({
             session_id: existingSessionId,
             user_id: userId,
             is_new,
+            language,
           },
         },
       });
@@ -337,6 +407,7 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
+  console.log(language);
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
@@ -474,7 +545,16 @@ export function ChatDemoInterface({
   return (
     <div className="flex flex-col relative">
       {/* Floating End Chat Button */}
+      <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
+          <div></div>
+        </div>
 
+        <LanguageSelector language={language} setLanguage={setLanguage} />
+      </div>
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div
           className={
