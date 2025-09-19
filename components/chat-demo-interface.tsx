@@ -164,7 +164,6 @@ function LanguageSelector({
     </Popover>
   );
 }
-
 export function ChatDemoInterface({
   sessionId,
   messages,
@@ -351,6 +350,7 @@ export function ChatDemoInterface({
           },
         },
       });
+      console.log("GraphQL response:", result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.metadata.retrieved_docs;
@@ -413,7 +413,6 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
-  console.log(language);
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
