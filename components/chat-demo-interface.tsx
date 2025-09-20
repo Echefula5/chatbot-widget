@@ -1,16 +1,20 @@
-"use client";
-
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
+import { Amplify } from "aws-amplify";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
 import {
   Dialog,
   DialogContent,
@@ -19,35 +23,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Send,
-  ThumbsUp,
-  ThumbsDown,
-  ExternalLink,
-  FileText,
-  Brain,
-  Globe,
-  ChevronDown,
-  X,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Amplify } from "aws-amplify";
+import { v4 as uuidv4 } from "uuid";
 import { generateClient } from "aws-amplify/api";
-import { sendUserMessage } from "@/graphql/mutations";
-import { onCreateMessage } from "@/graphql/subscriptions";
 import {
   askQuestionQuery,
   getConversation,
@@ -55,16 +32,22 @@ import {
   listFeedback,
   listMessages,
 } from "@/graphql/queries";
-import { useChatDispatch } from "./context";
-import { v4 as uuidv4 } from "uuid";
-
-import {
-  handleupdateWidgetFeedback,
-  handleWidgetFeedback,
-} from "./actions/assistant";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { getCookie, setCookie } from "cookies-next/client";
+import {
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  ExternalLink,
+  Brain,
+  ChevronDown,
+  Globe,
+  X,
+  Mail,
+  MessageSquare,
+  Star,
+} from "lucide-react";
 
 interface Message {
   id?: any;
@@ -82,19 +65,39 @@ interface Message {
   session_id: string;
 }
 
-interface Citation {
-  id: string;
-  title: string;
-  url: string;
-  snippet: string;
+interface ContactInfo {
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  consent: boolean;
 }
 
-interface ChatInterfaceProps {
-  sessionId: string;
-  messages: any;
-  setMessages: any;
-  setShowRating: any;
-  isMaximized: any;
+interface ChatWrapUpData {
+  conversationId: string;
+  endedAt: string;
+  endedReason: "user_end" | "timeout" | "handoff";
+  userFeedback: {
+    helpful: boolean;
+    comment: string;
+  };
+  handoff: {
+    needsHandoff: boolean;
+    reason: string;
+    preferredTopic: string;
+  };
+  contact: ContactInfo;
+  transcriptUrl: string;
+  metrics: {
+    durationSec: number;
+    turns: number;
+    avgConfidence: number;
+  };
+  kbCitations: Array<{
+    url: string;
+    title: string;
+    chunks: number[];
+  }>;
 }
 interface FeedbackItem {
   messageId: string;
@@ -102,6 +105,13 @@ interface FeedbackItem {
   content: string; // JSON string with { liked: boolean }
   timestamp: string | number;
   textFeedback: any;
+}
+interface ChatInterfaceProps {
+  sessionId: string;
+  messages: any;
+  setMessages: any;
+  setShowRating: any;
+  isMaximized: any;
 }
 type Language = "english" | "spanish" | "amharic" | "french";
 
@@ -174,13 +184,33 @@ export function ChatDemoInterface({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [conversationId, setConversationid] = useState(null);
-  const [expandedCitation, setExpandedCitation] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const dispatch = useChatDispatch();
-  const [language, setLanguage] = useState<Language>("english");
-  const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]); // <-- Define type
+
+  // Salesforce Integration State
+  const [showWrapUp, setShowWrapUp] = useState(false);
+  const [wrapUpStep, setWrapUpStep] = useState<
+    "feedback" | "contact" | "confirmation"
+  >("feedback");
+  const [needsHandoff, setNeedsHandoff] = useState(false);
+  const [userFeedback, setUserFeedback] = useState({
+    helpful: true,
+    comment: "",
+  });
+  const [language, setLanguage] = useState<Language>("english");
+
+  const [contactInfo, setContactInfo] = useState<ContactInfo>({
+    email: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    consent: false,
+  });
+  const [wantsCopy, setWantsCopy] = useState(false);
+  const [wantsFollowUp, setWantsFollowUp] = useState(false);
+  const [preferredTopic, setPreferredTopic] = useState("");
+  const [chatStartTime] = useState(new Date());
   const client = generateClient();
   const [feedbackModal, setFeedbackModal] = useState({
     isOpen: false,
@@ -191,6 +221,99 @@ export function ChatDemoInterface({
     botResponse: "",
     originalQuery: "",
   });
+  // Auto-close conditions
+  useEffect(() => {
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        handleAutoClose("timeout");
+      }, 10 * 60 * 1000); // 10 minutes of inactivity
+    };
+
+    // Reset timer on any user activity
+    resetTimer();
+
+    return () => clearTimeout(inactivityTimer);
+  }, [messages]);
+
+  // Check for handoff conditions based on confidence
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.isBot) {
+      try {
+        const content = JSON.parse(lastMessage.content);
+        const confidence = content.confidence || 1;
+
+        // Auto-trigger handoff for low confidence responses
+        if (confidence < 0.4) {
+          setNeedsHandoff(true);
+        }
+      } catch (e) {
+        console.error("Error parsing message content:", e);
+      }
+    }
+  }, [messages]);
+
+  const handleAutoClose = (reason: "timeout" | "handoff") => {
+    setShowWrapUp(true);
+  };
+
+  const handleEndChat = () => {
+    setShowWrapUp(true);
+  };
+
+  const calculateMetrics = () => {
+    const endTime = new Date();
+    const durationSec = Math.floor(
+      (endTime.getTime() - chatStartTime.getTime()) / 1000
+    );
+
+    let totalConfidence = 0;
+    let confidenceCount = 0;
+
+    messages.forEach((msg: Message) => {
+      if (msg.isBot) {
+        try {
+          const content = JSON.parse(msg.content);
+          if (content.confidence) {
+            totalConfidence += content.confidence;
+            confidenceCount++;
+          }
+        } catch (e) {
+          // Skip messages with parsing errors
+        }
+      }
+    });
+
+    const avgConfidence =
+      confidenceCount > 0 ? totalConfidence / confidenceCount : 0;
+    const userTurns = messages.filter((msg: Message) => !msg.isBot).length;
+
+    return {
+      durationSec,
+      turns: userTurns,
+      avgConfidence,
+    };
+  };
+
+  const extractCitations = () => {
+    const citations: Array<{ url: string; title: string; chunks: number[] }> =
+      [];
+
+    messages.forEach((msg: Message) => {
+      if (msg.isBot && msg.citations?.source_url) {
+        citations.push({
+          url: msg.citations.source_url,
+          title: msg.citations.reportTitle || "Web Content Analysis Report",
+          chunks: [1], // Simplified - you'd want to track actual chunk IDs
+        });
+      }
+    });
+
+    return citations;
+  };
   const openFeedbackModal = (
     messageId: string,
     feedbackType: "positive" | "negative",
@@ -211,6 +334,30 @@ export function ChatDemoInterface({
       originalQuery,
     });
   };
+  const submitToSalesforce = async (wrapUpData: ChatWrapUpData) => {
+    try {
+      // This would be your actual Salesforce integration endpoint
+      const response = await fetch("/api/salesforce/conversation", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(wrapUpData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit to Salesforce");
+      }
+
+      const result = await response.json();
+      console.log("Successfully submitted to Salesforce:", result);
+
+      return result;
+    } catch (error) {
+      console.error("Error submitting to Salesforce:", error);
+      throw error;
+    }
+  };
   Amplify.configure({
     API: {
       GraphQL: {
@@ -221,18 +368,35 @@ export function ChatDemoInterface({
       },
     },
   });
+  const handleWrapUpComplete = async () => {
+    const metrics = calculateMetrics();
+    const citations = extractCitations();
 
-  useEffect(() => {
-    const summaryData = JSON.parse(getCookie("metro_link_messages") || "{}");
-    if (summaryData?.messages?.length > 0) {
-      setMessages(summaryData?.messages);
+    const wrapUpData: ChatWrapUpData = {
+      conversationId: sessionId,
+      endedAt: new Date().toISOString(),
+      endedReason: needsHandoff ? "handoff" : "user_end",
+      userFeedback,
+      handoff: {
+        needsHandoff,
+        reason: needsHandoff ? "low_confidence" : "",
+        preferredTopic,
+      },
+      contact: contactInfo,
+      transcriptUrl: `https://your-domain.com/transcripts/${sessionId}.pdf`,
+      metrics,
+      kbCitations: citations,
+    };
+
+    try {
+      await submitToSalesforce(wrapUpData);
+      setShowWrapUp(false);
+      setShowRating(true); // Show final rating/thank you
+    } catch (error) {
+      console.error("Failed to complete wrap-up:", error);
+      // Handle error appropriately
     }
-  }, []);
-
-  const handleEndChat = () => {
-    setShowRating(true);
   };
-
   const renderConfidenceIndicator = (message: any) => {
     const confidence = JSON.parse(message.content).confidence;
     const percentage = Math.round(confidence * 100);
@@ -291,28 +455,269 @@ export function ChatDemoInterface({
       </div>
     );
   };
+  const renderWrapUpDialog = () => {
+    return (
+      <Dialog open={showWrapUp} onOpenChange={setShowWrapUp}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Chat Summary</DialogTitle>
+            <DialogDescription>
+              Thank you for using our chat assistant. We'd love to get your
+              feedback!
+            </DialogDescription>
+          </DialogHeader>
 
-  useEffect(() => {
-    // Auto-scroll to bottom when new messages arrive or typing state changes
-    const scrollToBottom = () => {
-      if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
-      }
-    };
+          {wrapUpStep === "feedback" && (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="helpful"
+                    checked={userFeedback.helpful}
+                    onChange={(e) =>
+                      setUserFeedback((prev) => ({
+                        ...prev,
+                        helpful: e.target.checked,
+                      }))
+                    }
+                    className="rounded"
+                  />
+                  <label htmlFor="helpful" className="text-sm font-medium">
+                    This conversation was helpful
+                  </label>
+                </div>
 
-    // Use setTimeout to ensure DOM is updated after accordion renders
-    setTimeout(scrollToBottom, 100);
-  }, [messages, isTyping]);
-  useEffect(() => {
-    if (messages && messages.length > 0) {
-      setCookie("metro_link_messages", JSON.stringify({ messages }), {
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-        sameSite: "none", // allow cross-site cookie
-        secure: true, // required when SameSite=None
-      });
-    }
-  }, [messages]);
+                <Textarea
+                  placeholder="Any additional feedback? (optional)"
+                  value={userFeedback.comment}
+                  onChange={(e) =>
+                    setUserFeedback((prev) => ({
+                      ...prev,
+                      comment: e.target.value,
+                    }))
+                  }
+                  className="min-h-[80px]"
+                />
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Would you like:</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Mail className="w-4 h-4 text-blue-600" />
+                    <input
+                      type="checkbox"
+                      id="email-copy"
+                      checked={wantsCopy}
+                      onChange={(e) => setWantsCopy(e.target.checked)}
+                      className="rounded"
+                    />
+                    <label htmlFor="email-copy" className="text-sm">
+                      A copy of this conversation emailed to you?
+                    </label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare className="w-4 h-4 text-green-600" />
+                    <input
+                      type="checkbox"
+                      id="follow-up"
+                      checked={wantsFollowUp}
+                      onChange={(e) => setWantsFollowUp(e.target.checked)}
+                      className="rounded"
+                    />
+                    <label htmlFor="follow-up" className="text-sm">
+                      A human to follow up with you?
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {needsHandoff && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center space-x-2 text-yellow-800">
+                    <Star className="w-4 h-4" />
+                    <span className="text-sm font-medium">
+                      We noticed you might need additional help
+                    </span>
+                  </div>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Our support team can provide more detailed assistance.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {wrapUpStep === "contact" &&
+            (wantsCopy || wantsFollowUp || needsHandoff) && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Email *</label>
+                    <Input
+                      type="email"
+                      value={contactInfo.email}
+                      onChange={(e) =>
+                        setContactInfo((prev) => ({
+                          ...prev,
+                          email: e.target.value,
+                        }))
+                      }
+                      placeholder="your.email@example.com"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-sm font-medium">First Name</label>
+                      <Input
+                        value={contactInfo.firstName}
+                        onChange={(e) =>
+                          setContactInfo((prev) => ({
+                            ...prev,
+                            firstName: e.target.value,
+                          }))
+                        }
+                        placeholder="First name"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Last Name</label>
+                      <Input
+                        value={contactInfo.lastName}
+                        onChange={(e) =>
+                          setContactInfo((prev) => ({
+                            ...prev,
+                            lastName: e.target.value,
+                          }))
+                        }
+                        placeholder="Last name"
+                      />
+                    </div>
+                  </div>
+
+                  {wantsFollowUp && (
+                    <div>
+                      <label className="text-sm font-medium">
+                        Phone (optional)
+                      </label>
+                      <Input
+                        type="tel"
+                        value={contactInfo.phone}
+                        onChange={(e) =>
+                          setContactInfo((prev) => ({
+                            ...prev,
+                            phone: e.target.value,
+                          }))
+                        }
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
+                  )}
+
+                  {needsHandoff && (
+                    <div>
+                      <label className="text-sm font-medium">
+                        Preferred Topic
+                      </label>
+                      <select
+                        value={preferredTopic}
+                        onChange={(e) => setPreferredTopic(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="">Select a topic</option>
+                        <option value="eligibility">Eligibility</option>
+                        <option value="billing">Billing</option>
+                        <option value="plan_selection">Plan Selection</option>
+                        <option value="technical">Technical</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex items-start space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="consent"
+                      checked={contactInfo.consent}
+                      onChange={(e) =>
+                        setContactInfo((prev) => ({
+                          ...prev,
+                          consent: e.target.checked,
+                        }))
+                      }
+                      className="rounded mt-1"
+                    />
+                    <label htmlFor="consent" className="text-xs text-gray-600">
+                      I agree to be contacted about this inquiry.
+                    </label>
+                  </div>
+                </div>
+              </div>
+            )}
+
+          <DialogFooter>
+            {wrapUpStep === "feedback" && (
+              <>
+                <Button variant="outline" onClick={() => setShowWrapUp(false)}>
+                  Close Chat
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (wantsCopy || wantsFollowUp || needsHandoff) {
+                      setWrapUpStep("contact");
+                    } else {
+                      handleWrapUpComplete();
+                    }
+                  }}
+                >
+                  {wantsCopy || wantsFollowUp || needsHandoff
+                    ? "Next"
+                    : "Complete"}
+                </Button>
+              </>
+            )}
+
+            {wrapUpStep === "contact" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setWrapUpStep("feedback")}
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={handleWrapUpComplete}
+                  disabled={!contactInfo.email || !contactInfo.consent}
+                >
+                  Submit
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // Add end chat button to your existing UI
+  const renderEndChatButton = () => (
+    <div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleEndChat}
+        className="bg-white/90 backdrop-blur-sm hover:bg-white"
+      >
+        End Chat
+      </Button>
+    </div>
+  );
+
+  // Placeholder for your existing methods - you'll need to integrate these
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || sending) return;
@@ -353,18 +758,20 @@ export function ChatDemoInterface({
       console.log("GraphQL response:", result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
-        const formatData = result.data.askQuestion.metadata.retrieved_docs;
-
+        const formatData = result.data.askQuestion.excerpts;
         const contentMatches = formatData?.find((item: any) =>
-          item.content.includes("Web Content Analysis Report")
+          item?.text?.includes("Web Content Analysis Report")
         );
-        const content = contentMatches?.content;
+        console.log("Content Matches:", contentMatches);
+        const content = contentMatches?.text;
+        console.log(content);
         // Extract sections by labels
         const extractSection = (label: any) => {
           const regex = new RegExp(
-            `${label}\\s+(.*?)\\s+(?=(Scraping Method|Content Quality Score|Dynamic Content Detected|Source|Analysis Date|Content Items Found|Executive Summary|Key Themes Identified|Content Analysis|$))`,
+            `${label}\\s+(.*?)(?=(Scraping Method|Content Quality Score|Dynamic Content Detected|Source|Analysis Date|Content Items Found|Executive Summary|Key Themes Identified|Content Analysis|$))`,
             "s"
           );
+
           const match = content?.match(regex);
           return match ? match[1].trim() : null;
         };
@@ -394,9 +801,9 @@ export function ChatDemoInterface({
           instructions: '{ "randomize_factor": "high" }',
           content: JSON.stringify({
             response: result.data.askQuestion.response,
-            confidence: result.data.askQuestion.metadata.confidence,
+            confidence: result.data.askQuestion.intent_analysis.confidence,
           }),
-          intent: result.data.askQuestion.metadata.intent_analysis,
+          intent: result.data.askQuestion.intent,
           session_id: result.data.askQuestion.metadata.session_id,
           timestamp: new Date().toISOString(),
           citations: structuredContent,
@@ -413,6 +820,7 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
+  console.log("Messages:", messages);
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
@@ -462,104 +870,22 @@ export function ChatDemoInterface({
     );
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const getAllFeedbacks = async () => {
-    try {
-      const userId = `user_${sessionId}`;
-      const data = await client.graphql({
-        query: HbxlistFeedback,
-        variables: {
-          filter: {
-            userId: { eq: userId },
-          },
-          limit: 100,
-        },
-      });
-      if ("data" in data) {
-        const feedbackItems =
-          data.data?.HbxlistFeedback?.items.filter(Boolean) ?? [];
-        setFeedback(feedbackItems);
-        return feedbackItems;
-      }
-    } catch (error) {
-      console.error("Error fetching feedbacks:", error);
-      return [];
-    }
-  };
-
-  const handleFeedbackSubmit = async () => {
-    try {
-      const {
-        messageId,
-        currentFeedback,
-        textFeedback,
-        existingFeedbackId,
-        botResponse,
-        originalQuery,
-      } = feedbackModal;
-
-      if (!currentFeedback) return;
-
-      const likedValue = currentFeedback === "positive" ? true : false;
-      const userId = `user_${sessionId}`;
-
-      if (existingFeedbackId) {
-        // Update existing feedback
-        await handleupdateWidgetFeedback(
-          existingFeedbackId,
-          userId,
-          likedValue,
-          Date.now(),
-          textFeedback // Pass text feedback if your API supports it
-        );
-      } else {
-        // Create new feedback
-        await handleWidgetFeedback(
-          messageId,
-          userId,
-          likedValue,
-          sessionId,
-          "message",
-          textFeedback,
-          null,
-          botResponse,
-          originalQuery
-        );
-      }
-
-      getAllFeedbacks();
-      setFeedbackModal({
-        isOpen: false,
-        messageId: "",
-        currentFeedback: null,
-        textFeedback: "",
-        existingFeedbackId: null,
-        botResponse: "",
-        originalQuery: "",
-      });
-    } catch (error) {
-      console.error("Failed to submit feedback:", error);
-    }
-  };
   return (
     <div className="flex flex-col relative">
-      {/* Floating End Chat Button */}
+      {/* Header */}
       <div className="flex items-center justify-between p-2 border-b bg-gray-50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
             <Brain className="w-5 h-5 text-white" />
           </div>
-          <div></div>
         </div>
-
-        <LanguageSelector language={language} setLanguage={setLanguage} />
+        <div className="flex items-center gap-2">
+          <LanguageSelector language={language} setLanguage={setLanguage} />
+          {renderEndChatButton()}
+        </div>
       </div>
+
+      {/* Messages Area */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div
           className={
@@ -570,162 +896,137 @@ export function ChatDemoInterface({
         >
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-4">
-              {messages.map((message: any, index: any) => {
-                return (
-                  <div key={index}>
+              {messages.map((message: any, index: any) => (
+                <div key={index}>
+                  <div
+                    className={`flex ${
+                      !message.isBot ? "justify-end" : "justify-start"
+                    }`}
+                  >
                     <div
-                      className={`flex ${
-                        !message.isBot ? "justify-end" : "justify-start"
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        message.isBot
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-900"
                       }`}
                     >
-                      <div
-                        className={`max-w-[80%] rounded-lg p-3 ${
-                          message.isBot
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-900"
-                        }`}
-                      >
-                        {renderMessageContent(message)}
-                        {message.isBot &&
-                          !message.citations.source_url &&
-                          !(
-                            message.intent?.includes("greeting") ||
-                            message.intent?.includes("closing")
-                          ) && (
-                            <a
-                              href="https://metrohealthlink.com/contact" // <-- Change this to your actual support link
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <Button
-                                size="sm"
-                                className="mt-4 bg-white text-blue-600 border border-blue-600 hover:bg-blue-50 hover:border-blue-700 hover:text-blue-700 transition-colors rounded-md shadow-sm"
-                              >
-                                Connect with Support
-                              </Button>
-                            </a>
-                          )}
-                      </div>
+                      {renderMessageContent(message)}
                     </div>
-
-                    {/* Citations Accordion */}
-                    {message.isBot && message.citations.source_url && (
-                      <div className="max-w-[80%] mt-3">
-                        <Accordion type="single" collapsible className="w-full">
-                          <AccordionItem
-                            value={`citations-${message.id}`}
-                            className="border rounded-lg"
-                          >
-                            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                              <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                                <Globe className="w-4 h-4 text-blue-600" />
-                                <span>Citations (1)</span>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-3">
-                              <div className="space-y-2">
-                                <Card className="hover:shadow-md transition-shadow cursor-pointer group border-l-4 border-l-blue-500">
-                                  <CardContent className="p-3">
-                                    <div className="flex items-start gap-3">
-                                      <div className="flex-shrink-0 mt-0.5">
-                                        <Globe className="w-4 h-4 text-blue-500" />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <h5
-                                          className="text-sm max-w-[100px] font-medium text-gray-900 
-    truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
-                                        >
-                                          Web Content Analysis Report
-                                        </h5>
-                                        <a
-                                          className="text-xs text-gray-500 mt-1"
-                                          href={message.citations.source_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                        >
-                                          Webpage • Click to view
-                                        </a>
-                                        {message.citations.executiveSummary && (
-                                          <p className="text-xs text-gray-600 mt-2">
-                                            {message.citations.executiveSummary}
-                                          </p>
-                                        )}
-                                      </div>
+                  </div>
+                  {message.isBot && message.citations.source_url && (
+                    <div className="max-w-[80%] mt-3">
+                      <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem
+                          value={`citations-${message.id}`}
+                          className="border rounded-lg"
+                        >
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                              <Globe className="w-4 h-4 text-blue-600" />
+                              <span>Citations (1)</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3">
+                            <div className="space-y-2">
+                              <Card className="hover:shadow-md transition-shadow cursor-pointer group border-l-4 border-l-blue-500">
+                                <CardContent className="p-3">
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      <Globe className="w-4 h-4 text-blue-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h5
+                                        className="text-sm max-w-[100px] font-medium text-gray-900 
+                      truncate whitespace-nowrap overflow-hidden group-hover:text-blue-600 transition-colors"
+                                      >
+                                        Web Content Analysis Report
+                                      </h5>
                                       <a
+                                        className="text-xs text-gray-500 mt-1"
                                         href={message.citations.source_url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="group"
                                       >
-                                        <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                                        Webpage • Click to view
                                       </a>
+                                      {message.citations.executiveSummary && (
+                                        <p className="text-xs text-gray-600 mt-2">
+                                          {message.citations.executiveSummary}
+                                        </p>
+                                      )}
                                     </div>
-                                  </CardContent>
-                                </Card>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                      </div>
-                    )}
-
-                    {/* Feedback buttons for bot messages */}
-                    {message.isBot && (
-                      <div className="flex items-center space-x-2 mt-2 ml-4">
-                        <span className="text-xs text-gray-500">
-                          Was this helpful?
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            openFeedbackModal(
-                              message.id,
-                              "positive",
-                              JSON.parse(message.content).response,
-                              message.originalQuery
-                            );
-                          }}
-                          className={`h-6 w-6 p-0 ${
-                            feedback.find(
-                              (f: any) =>
-                                f.messageId === message.id &&
-                                JSON.parse(f.content).liked
-                            )
-                              ? "text-green-600"
-                              : ""
-                          }`}
-                        >
-                          <ThumbsUp className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            openFeedbackModal(
-                              message.id,
-                              "negative",
-                              JSON.parse(message.content).response,
-                              message.originalQuery
-                            );
-                          }}
-                          className={`h-6 w-6 p-0 ${
-                            feedback.find(
-                              (f: any) =>
-                                f.messageId === message.id &&
-                                !JSON.parse(f.content).liked
-                            )
-                              ? "text-red-600"
-                              : ""
-                          }`}
-                        >
-                          <ThumbsDown className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                                    <a
+                                      href={message.citations.source_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="group"
+                                    >
+                                      <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                                    </a>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
+                  )}
+                  {message.isBot && (
+                    <div className="flex items-center space-x-2 mt-2 ml-4">
+                      <span className="text-xs text-gray-500">
+                        Was this helpful?
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          openFeedbackModal(
+                            message.id,
+                            "positive",
+                            JSON.parse(message.content).response,
+                            message.originalQuery
+                          );
+                        }}
+                        className={`h-6 w-6 p-0 ${
+                          feedback.find(
+                            (f: any) =>
+                              f.messageId === message.id &&
+                              JSON.parse(f.content).liked
+                          )
+                            ? "text-green-600"
+                            : ""
+                        }`}
+                      >
+                        <ThumbsUp className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          openFeedbackModal(
+                            message.id,
+                            "negative",
+                            JSON.parse(message.content).response,
+                            message.originalQuery
+                          );
+                        }}
+                        className={`h-6 w-6 p-0 ${
+                          feedback.find(
+                            (f: any) =>
+                              f.messageId === message.id &&
+                              !JSON.parse(f.content).liked
+                          )
+                            ? "text-red-600"
+                            : ""
+                        }`}
+                      >
+                        <ThumbsDown className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
 
               {/* Typing animation */}
               {isTyping && (
@@ -760,7 +1061,6 @@ export function ChatDemoInterface({
             placeholder="Type your message..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyPress={handleKeyPress}
             disabled={sending}
             className="flex-1"
           />
@@ -773,12 +1073,14 @@ export function ChatDemoInterface({
           </Button>
         </div>
       </div>
+
+      {/* Disclaimer */}
       {isMaximized ? (
-        <h2 className=" text-center">
+        <h2 className="text-center text-sm">
           Smart Assistant can make mistakes. Consider checking important
           information for accuracy.{" "}
           <a
-            className=" font-bold"
+            className="font-bold"
             target="_blank"
             href="https://metrohealthlink.com/blog-single/why-smart-assistants-can-make-mistakes"
           >
@@ -786,12 +1088,11 @@ export function ChatDemoInterface({
           </a>
         </h2>
       ) : (
-        <p className=" text-xs text-center">
-          {" "}
+        <p className="text-xs text-center">
           Smart Assistant can make mistakes. Consider checking important
           information for accuracy.{" "}
           <a
-            className=" font-bold"
+            className="font-bold"
             target="_blank"
             href="https://metrohealthlink.com/blog-single/why-smart-assistants-can-make-mistakes"
           >
@@ -800,105 +1101,7 @@ export function ChatDemoInterface({
         </p>
       )}
 
-      <Dialog
-        open={feedbackModal.isOpen}
-        onOpenChange={(open) =>
-          setFeedbackModal((prev) => ({ ...prev, isOpen: open }))
-        }
-      >
-        <DialogContent className="sm:max-w-[20rem]">
-          <DialogHeader>
-            <DialogTitle>
-              {feedbackModal.currentFeedback === "positive"
-                ? "Positive"
-                : "Negative"}{" "}
-              Feedback
-            </DialogTitle>
-            <DialogDescription>
-              {feedbackModal.existingFeedbackId
-                ? "Edit your feedback for this response."
-                : "Help us improve by sharing your thoughts about this response."}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Rating:</span>
-              <div className="flex space-x-1">
-                <Button
-                  variant={
-                    feedbackModal.currentFeedback === "positive"
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() =>
-                    setFeedbackModal((prev) => ({
-                      ...prev,
-                      currentFeedback: "positive",
-                    }))
-                  }
-                  className="h-8"
-                >
-                  <ThumbsUp className="w-3 h-3 mr-1" />
-                  Helpful
-                </Button>
-                <Button
-                  variant={
-                    feedbackModal.currentFeedback === "negative"
-                      ? "default"
-                      : "outline"
-                  }
-                  size="sm"
-                  onClick={() =>
-                    setFeedbackModal((prev) => ({
-                      ...prev,
-                      currentFeedback: "negative",
-                    }))
-                  }
-                  className="h-8"
-                >
-                  <ThumbsDown className="w-3 h-3 mr-1" />
-                  Not Helpful
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Additional Comments (Optional)
-              </label>
-              <Textarea
-                placeholder="Tell us more about your experience with this response..."
-                value={feedbackModal.textFeedback}
-                onChange={(e) =>
-                  setFeedbackModal((prev) => ({
-                    ...prev,
-                    textFeedback: e.target.value,
-                  }))
-                }
-                className="min-h-[80px]"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setFeedbackModal((prev) => ({ ...prev, isOpen: false }))
-              }
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleFeedbackSubmit}>
-              {feedbackModal.existingFeedbackId
-                ? "Update Feedback"
-                : "Submit Feedback"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {renderWrapUpDialog()}
     </div>
   );
 }

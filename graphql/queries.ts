@@ -111,6 +111,15 @@ export const askQuestionQuery = /* GraphQL */ `
     askQuestion(input: $input) {
       success
       response
+      excerpts {
+        text
+        source_id
+        relevance_score
+      }
+      intent_analysis {
+        intent
+        confidence
+      }
       metadata {
         intent
         intent_confidence
