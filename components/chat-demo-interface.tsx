@@ -48,7 +48,22 @@ import {
   MessageSquare,
   Star,
 } from "lucide-react";
+interface LeadData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  company: string;
+  city?: string;
+  country_code?: string;
+  state_code?: string;
+}
 
+interface LeadResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  leadData?: LeadData;
+}
 interface Message {
   id?: any;
   content: string;
@@ -337,7 +352,7 @@ export function ChatDemoInterface({
   const submitToSalesforce = async (wrapUpData: ChatWrapUpData) => {
     try {
       // This would be your actual Salesforce integration endpoint
-      const response = await fetch("/api/salesforce/conversation", {
+      const response = await fetch("/api/salesforce/create-lead", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -716,7 +731,33 @@ export function ChatDemoInterface({
       </Button>
     </div>
   );
+  const submitLead = async (leadData: LeadData): Promise<LeadResponse> => {
+    try {
+      const response = await fetch("/api/create-lead", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(leadData),
+      });
 
+      const result: LeadResponse = await response.json();
+
+      if (result.success) {
+        console.log("✅ Lead created successfully:", result.leadData);
+      } else {
+        console.error("❌ Failed to create lead:", result.error);
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Network error:", error);
+      return {
+        success: false,
+        error: "Network error occurred while submitting lead",
+      };
+    }
+  };
   // Placeholder for your existing methods - you'll need to integrate these
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
@@ -741,7 +782,14 @@ export function ChatDemoInterface({
 
     try {
       setIsTyping(true);
-
+      const data = {
+        first_name: "Eche",
+        last_name: "Ndukwe",
+        email: "eche@nimbussp.com",
+        company: "Nimbus Solutions Provider",
+  
+      };
+      submitLead(data);
       const is_new = messages.length === 0 ? true : false;
       const result = await client.graphql({
         query: askQuestionQuery,
@@ -803,7 +851,7 @@ export function ChatDemoInterface({
             response: result.data.askQuestion.response,
             confidence: result.data.askQuestion.intent_analysis.confidence,
           }),
-          intent: result.data.askQuestion.intent,
+          intent: result.data.askQuestion.intent_analysis.intent,
           session_id: result.data.askQuestion.metadata.session_id,
           timestamp: new Date().toISOString(),
           citations: structuredContent,
