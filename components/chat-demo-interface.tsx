@@ -80,6 +80,7 @@ interface Message {
   originalQuery?: string;
   intent?: string;
   session_id: string;
+  excerpts?: any;
 }
 
 interface ContactInfo {
@@ -830,6 +831,7 @@ export function ChatDemoInterface({
           },
         },
       });
+      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.excerpts;
@@ -839,12 +841,12 @@ export function ChatDemoInterface({
 
         const content = contentMatches?.text;
 
-        const sourceUrlMatch = content.match(/"source_url":\s*"([^"]+)"/);
-        const summaryMatch = content.match(/"summary":\s*"([^"]+)"/);
-        const scrapingMethodMatch = content.match(
+        const sourceUrlMatch = content?.match(/"source_url":\s*"([^"]+)"/);
+        const summaryMatch = content?.match(/"summary":\s*"([^"]+)"/);
+        const scrapingMethodMatch = content?.match(
           /"scraping_method":\s*"([^"]+)"/
         );
-        const extractionDateMatch = content.match(
+        const extractionDateMatch = content?.match(
           /"extraction_date":\s*"([^"]+)"/
         );
 
@@ -872,6 +874,7 @@ export function ChatDemoInterface({
             response: result.data.askQuestion.response,
             confidence: result.data.askQuestion.confidence,
           }),
+          excerpts: formatData.length > 0 ? true : false,
           intent: result.data.askQuestion.intent_analysis.intent,
           session_id: result.data.askQuestion.metadata.session_id,
           timestamp: new Date().toISOString(),
@@ -889,6 +892,7 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
+  console.log(messages);
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
@@ -928,8 +932,7 @@ export function ChatDemoInterface({
           !(
             message.intent?.includes("greeting") ||
             message.intent?.includes("closing") ||
-            (message.intent?.includes("out_of_domain") &&
-              !message.citations?.url)
+            (message.intent?.includes("out_of_domain") && !message.excerpts)
           ) && (
             <div className="text-xs text-gray-400 mt-1">
               {renderConfidenceIndicator(message)}
