@@ -129,6 +129,9 @@ interface ChatInterfaceProps {
   setMessages: any;
   setShowRating: any;
   isMaximized: any;
+  showWrapUp: any;
+  setShowWrapUp: any;
+  setIsOpen: any;
 }
 type Language = "english" | "spanish" | "amharic" | "french";
 
@@ -197,6 +200,9 @@ export function ChatDemoInterface({
   setMessages,
   setShowRating,
   isMaximized,
+  showWrapUp,
+  setShowWrapUp,
+  setIsOpen,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -204,9 +210,7 @@ export function ChatDemoInterface({
   const [conversationId, setConversationId] = useState(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]); // <-- Define type
-
   // Salesforce Integration State
-  const [showWrapUp, setShowWrapUp] = useState(false);
   const [wrapUpStep, setWrapUpStep] = useState<
     "feedback" | "contact" | "confirmation"
   >("feedback");
@@ -695,7 +699,13 @@ export function ChatDemoInterface({
           <DialogFooter>
             {wrapUpStep === "feedback" && (
               <>
-                <Button variant="outline" onClick={() => setShowWrapUp(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowWrapUp(false);
+                    setIsOpen(false);
+                  }}
+                >
                   Close Chat
                 </Button>
                 <Button
@@ -820,7 +830,6 @@ export function ChatDemoInterface({
           },
         },
       });
-      console.log("GraphQL response:", result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.excerpts;
@@ -880,7 +889,6 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
-  console.log("Messages:", messages);
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
@@ -942,7 +950,6 @@ export function ChatDemoInterface({
         </div>
         <div className="flex items-center gap-2">
           <LanguageSelector language={language} setLanguage={setLanguage} />
-          {renderEndChatButton()}
         </div>
       </div>
 

@@ -42,6 +42,7 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
   const [sessionId] = useState(() => crypto.randomUUID());
   const [messages, setMessages] = useState<Message[]>([]);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [showWrapUp, setShowWrapUp] = useState(false);
 
   // Notify parent window of state changes
   const notifyParent = (type: string, data?: any) => {
@@ -51,12 +52,10 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
     if (typeof window === "undefined") return;
 
     const handleStatus = (event: MessageEvent) => {
-      console.log(event);
       if (event.data.type === "WIDGET_STATUS") {
         console.log("Widget status:", event.data.data);
       }
     };
-    console.log("echeß");
     window.addEventListener("message", handleStatus);
     return () => window.removeEventListener("message", handleStatus);
   }, []);
@@ -120,15 +119,17 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
     // Resize container to full widget size
     notifyParent("WIDGET_RESIZE", { width: 400, height: 600 });
   };
-  console.log("test");
   const handleClose = () => {
-    setIsOpen(false);
-    setShowRating(true);
-    notifyParent("WIDGET_CLOSE");
-    notifyParent("TRACK_EVENT", {
-      event: "widget_closed",
-      properties: { widgetId, sessionId },
-    });
+    if (activeTab !== "chat") {
+      setIsOpen(false);
+      notifyParent("WIDGET_CLOSE");
+      notifyParent("TRACK_EVENT", {
+        event: "widget_closed",
+        properties: { widgetId, sessionId },
+      });
+    } else {
+      setShowWrapUp(true);
+    }
 
     // Resize container to button size
   };
@@ -274,6 +275,9 @@ export function ChatWidget({ widgetId, theme = "default" }: ChatWidgetProps) {
                 setMessages={setMessages}
                 setShowRating={setShowRating}
                 isMaximized={isMaximized}
+                showWrapUp={showWrapUp}
+                setShowWrapUp={setShowWrapUp}
+                setIsOpen={setIsOpen}
               />
             </TabsContent>
 
