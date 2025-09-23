@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Amplify } from "aws-amplify";
+import { getCookie, setCookie } from "cookies-next/client";
+
 import {
   Accordion,
   AccordionContent,
@@ -238,6 +240,22 @@ export function ChatDemoInterface({
   });
   // Auto-close conditions
   useEffect(() => {
+    if (messages && messages.length > 0) {
+      setCookie("metro_link_messages", JSON.stringify({ messages }), {
+        maxAge: 60 * 60 * 24 * 7,
+        path: "/",
+        sameSite: "none", // allow cross-site cookie
+        secure: true, // required when SameSite=None
+      });
+    }
+  }, [messages]);
+  useEffect(() => {
+    const summaryData = JSON.parse(getCookie("metro_link_messages") || "{}");
+    if (summaryData?.messages?.length > 0) {
+      setMessages(summaryData?.messages);
+    }
+  }, []);
+  useEffect(() => {
     let inactivityTimer: NodeJS.Timeout;
 
     const resetTimer = () => {
@@ -349,30 +367,30 @@ export function ChatDemoInterface({
       originalQuery,
     });
   };
-  const submitToSalesforce = async (wrapUpData: ChatWrapUpData) => {
-    try {
-      // This would be your actual Salesforce integration endpoint
-      const response = await fetch("/api/salesforce/create-lead", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(wrapUpData),
-      });
+  // const submitToSalesforce = async (wrapUpData: ChatWrapUpData) => {
+  //   try {
+  //     // This would be your actual Salesforce integration endpoint
+  //     const response = await fetch("/api/salesforce/create-lead", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(wrapUpData),
+  //     });
 
-      if (!response.ok) {
-        throw new Error("Failed to submit to Salesforce");
-      }
+  //     if (!response.ok) {
+  //       throw new Error("Failed to submit to Salesforce");
+  //     }
 
-      const result = await response.json();
-      console.log("Successfully submitted to Salesforce:", result);
+  //     const result = await response.json();
+  //     console.log("Successfully submitted to Salesforce:", result);
 
-      return result;
-    } catch (error) {
-      console.error("Error submitting to Salesforce:", error);
-      throw error;
-    }
-  };
+  //     return result;
+  //   } catch (error) {
+  //     console.error("Error submitting to Salesforce:", error);
+  //     throw error;
+  //   }
+  // };
   Amplify.configure({
     API: {
       GraphQL: {
@@ -404,7 +422,7 @@ export function ChatDemoInterface({
     };
 
     try {
-      await submitToSalesforce(wrapUpData);
+      // await submitToSalesforce(wrapUpData);
       setShowWrapUp(false);
       setShowRating(true); // Show final rating/thank you
     } catch (error) {
@@ -731,33 +749,33 @@ export function ChatDemoInterface({
       </Button>
     </div>
   );
-  const submitLead = async (leadData: LeadData): Promise<LeadResponse> => {
-    try {
-      const response = await fetch("/api/create-lead", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(leadData),
-      });
+  // const submitLead = async (leadData: LeadData): Promise<LeadResponse> => {
+  //   try {
+  //     const response = await fetch("/api/create-lead", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(leadData),
+  //     });
 
-      const result: LeadResponse = await response.json();
+  //     const result: LeadResponse = await response.json();
 
-      if (result.success) {
-        console.log("✅ Lead created successfully:", result.leadData);
-      } else {
-        console.error("❌ Failed to create lead:", result.error);
-      }
+  //     if (result.success) {
+  //       console.log("✅ Lead created successfully:", result.leadData);
+  //     } else {
+  //       console.error("❌ Failed to create lead:", result.error);
+  //     }
 
-      return result;
-    } catch (error) {
-      console.error("Network error:", error);
-      return {
-        success: false,
-        error: "Network error occurred while submitting lead",
-      };
-    }
-  };
+  //     return result;
+  //   } catch (error) {
+  //     console.error("Network error:", error);
+  //     return {
+  //       success: false,
+  //       error: "Network error occurred while submitting lead",
+  //     };
+  //   }
+  // };
   // Placeholder for your existing methods - you'll need to integrate these
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
@@ -787,9 +805,8 @@ export function ChatDemoInterface({
         last_name: "Ndukwe",
         email: "eche@nimbussp.com",
         company: "Nimbus Solutions Provider",
-  
       };
-      submitLead(data);
+      // submitLead(data);
       const is_new = messages.length === 0 ? true : false;
       const result = await client.graphql({
         query: askQuestionQuery,
@@ -808,37 +825,32 @@ export function ChatDemoInterface({
         setIsTyping(false);
         const formatData = result.data.askQuestion.excerpts;
         const contentMatches = formatData?.find((item: any) =>
-          item?.text?.includes("Web Content Analysis Report")
+          item?.text?.includes("source_url")
         );
-        console.log("Content Matches:", contentMatches);
-        const content = contentMatches?.text;
-        console.log(content);
-        // Extract sections by labels
-        const extractSection = (label: any) => {
-          const regex = new RegExp(
-            `${label}\\s+(.*?)(?=(Scraping Method|Content Quality Score|Dynamic Content Detected|Source|Analysis Date|Content Items Found|Executive Summary|Key Themes Identified|Content Analysis|$))`,
-            "s"
-          );
 
-          const match = content?.match(regex);
-          return match ? match[1].trim() : null;
-        };
+        const content = contentMatches?.text;
+
+        const sourceUrlMatch = content.match(/"source_url":\s*"([^"]+)"/);
+        const summaryMatch = content.match(/"summary":\s*"([^"]+)"/);
+        const scrapingMethodMatch = content.match(
+          /"scraping_method":\s*"([^"]+)"/
+        );
+        const extractionDateMatch = content.match(
+          /"extraction_date":\s*"([^"]+)"/
+        );
 
         const structuredContent = {
           reportTitle: "Web Content Analysis Report", // static title
-          scrapingMethod:
-            extractSection("Scraping Method") || "DYNAMIC_ENHANCED",
-          contentQuality: extractSection("Content Quality Score") || null,
-          dynamicDetected: extractSection("Dynamic Content Detected") || null,
-          source_url:
-            (content?.match(/Source:\s*(https?:\/\/[^\s]+)/) || [])[1] || null,
-          analysisDate: extractSection("Analysis Date") || null,
-          executiveSummary: extractSection("Executive Summary") || null,
-          keyThemes: (extractSection("Key Themes Identified") || "")
-            .split("•")
-            .map((t: any) => t.trim())
-            .filter(Boolean),
-          contentAnalysis: extractSection("Content Analysis") || null,
+          scrapingMethod: scrapingMethodMatch
+            ? scrapingMethodMatch[1]
+            : "DYNAMIC_ENHANCED",
+          contentQuality: null, // not in raw string
+          dynamicDetected: null, // not in raw string
+          source_url: sourceUrlMatch ? sourceUrlMatch[1] : null,
+          analysisDate: extractionDateMatch ? extractionDateMatch[1] : null,
+          executiveSummary: summaryMatch ? summaryMatch[1] : null, // ✅ summary → executiveSummary
+          keyThemes: [],
+          contentAnalysis: null,
           source: formatData?.source,
         };
         const botMessage: Message = {
@@ -849,7 +861,7 @@ export function ChatDemoInterface({
           instructions: '{ "randomize_factor": "high" }',
           content: JSON.stringify({
             response: result.data.askQuestion.response,
-            confidence: result.data.askQuestion.intent_analysis.confidence,
+            confidence: result.data.askQuestion.confidence,
           }),
           intent: result.data.askQuestion.intent_analysis.intent,
           session_id: result.data.askQuestion.metadata.session_id,
@@ -908,7 +920,8 @@ export function ChatDemoInterface({
           !(
             message.intent?.includes("greeting") ||
             message.intent?.includes("closing") ||
-            message.intent?.includes("out_of_domain")
+            (message.intent?.includes("out_of_domain") &&
+              !message.citations?.url)
           ) && (
             <div className="text-xs text-gray-400 mt-1">
               {renderConfidenceIndicator(message)}
@@ -1020,6 +1033,7 @@ export function ChatDemoInterface({
                       </Accordion>
                     </div>
                   )}
+
                   {message.isBot && (
                     <div className="flex items-center space-x-2 mt-2 ml-4">
                       <span className="text-xs text-gray-500">

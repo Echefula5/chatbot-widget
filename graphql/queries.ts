@@ -111,6 +111,7 @@ export const askQuestionQuery = /* GraphQL */ `
     askQuestion(input: $input) {
       success
       response
+      confidence
       excerpts {
         text
         source_id
