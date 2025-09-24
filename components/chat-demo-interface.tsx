@@ -5,7 +5,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Amplify } from "aws-amplify";
 import { getCookie, setCookie } from "cookies-next/client";
-
+import {
+  handleupdateWidgetFeedback,
+  handleWidgetFeedback,
+} from "./actions/assistant";
 import {
   Accordion,
   AccordionContent,
@@ -70,7 +73,7 @@ interface Message {
   id?: any;
   content: string;
   timestamp: String;
-  newConversation: boolean;
+  newConversation?: boolean;
   conversationId: any;
   userId: String;
   instructions: any;
@@ -80,7 +83,6 @@ interface Message {
   originalQuery?: string;
   intent?: string;
   session_id: string;
-  excerpts?: any;
 }
 
 interface ContactInfo {
@@ -246,18 +248,15 @@ export function ChatDemoInterface({
   // Auto-close conditions
   useEffect(() => {
     if (messages && messages.length > 0) {
-      setCookie("metro_link_messages", JSON.stringify({ messages }), {
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-        sameSite: "none", // allow cross-site cookie
-        secure: true, // required when SameSite=None
-      });
+      localStorage.setItem("metro_link_messages", JSON.stringify({ messages }));
     }
   }, [messages]);
   useEffect(() => {
-    const summaryData = JSON.parse(getCookie("metro_link_messages") || "{}");
+    const stored = localStorage.getItem("metro_link_messages");
+    const summaryData = JSON.parse(stored || "{}");
     if (summaryData?.messages?.length > 0) {
       setMessages(summaryData?.messages);
+      getAllFeedbacks();
     }
   }, []);
   useEffect(() => {
@@ -301,7 +300,6 @@ export function ChatDemoInterface({
   const handleEndChat = () => {
     setShowWrapUp(true);
   };
-
   const calculateMetrics = () => {
     const endTime = new Date();
     const durationSec = Math.floor(
@@ -831,7 +829,6 @@ export function ChatDemoInterface({
           },
         },
       });
-      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.excerpts;
@@ -852,21 +849,11 @@ export function ChatDemoInterface({
 
         const structuredContent = {
           reportTitle: "Web Content Analysis Report", // static title
-          scrapingMethod: scrapingMethodMatch
-            ? scrapingMethodMatch[1]
-            : "DYNAMIC_ENHANCED",
-          contentQuality: null, // not in raw string
-          dynamicDetected: null, // not in raw string
           source_url: sourceUrlMatch ? sourceUrlMatch[1] : null,
-          analysisDate: extractionDateMatch ? extractionDateMatch[1] : null,
           executiveSummary: summaryMatch ? summaryMatch[1] : null, // ✅ summary → executiveSummary
-          keyThemes: [],
-          contentAnalysis: null,
-          source: formatData?.source,
         };
         const botMessage: Message = {
           id: result.data.askQuestion.metadata.messageId,
-          newConversation: conversationId === null,
           conversationId,
           userId: `user_${sessionId}`,
           instructions: '{ "randomize_factor": "high" }',
@@ -874,9 +861,8 @@ export function ChatDemoInterface({
             response: result.data.askQuestion.response,
             confidence: result.data.askQuestion.confidence,
           }),
-          excerpts: formatData.length > 0 ? true : false,
           intent: result.data.askQuestion.intent_analysis.intent,
-          session_id: result.data.askQuestion.metadata.session_id,
+          session_id: result.data.askQuestion.session_id,
           timestamp: new Date().toISOString(),
           citations: structuredContent,
           isBot: true,
@@ -892,7 +878,91 @@ export function ChatDemoInterface({
       setSending(false);
     }
   };
-  console.log(messages);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const getAllFeedbacks = async () => {
+    try {
+      const userId = `user_${sessionId}`;
+      const data = await client.graphql({
+        query: HbxlistFeedback,
+        variables: {
+          filter: {
+            userId: { eq: userId },
+          },
+          limit: 100,
+        },
+      });
+      if ("data" in data) {
+        const feedbackItems =
+          data.data?.HbxlistFeedback?.items.filter(Boolean) ?? [];
+        setFeedback(feedbackItems);
+        return feedbackItems;
+      }
+    } catch (error) {
+      console.error("Error fetching feedbacks:", error);
+      return [];
+    }
+  };
+
+  const handleFeedbackSubmit = async () => {
+    try {
+      const {
+        messageId,
+        currentFeedback,
+        textFeedback,
+        existingFeedbackId,
+        botResponse,
+        originalQuery,
+      } = feedbackModal;
+
+      if (!currentFeedback) return;
+
+      const likedValue = currentFeedback === "positive" ? true : false;
+      const userId = `user_${sessionId}`;
+
+      if (existingFeedbackId) {
+        // Update existing feedback
+        await handleupdateWidgetFeedback(
+          existingFeedbackId,
+          userId,
+          likedValue,
+          Date.now(),
+          textFeedback // Pass text feedback if your API supports it
+        );
+      } else {
+        // Create new feedback
+        await handleWidgetFeedback(
+          messageId,
+          userId,
+          likedValue,
+          sessionId,
+          "message",
+          textFeedback,
+          null,
+          botResponse,
+          originalQuery
+        );
+      }
+
+      getAllFeedbacks();
+      setFeedbackModal({
+        isOpen: false,
+        messageId: "",
+        currentFeedback: null,
+        textFeedback: "",
+        existingFeedbackId: null,
+        botResponse: "",
+        originalQuery: "",
+      });
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+    }
+  };
   const renderMessageContent = (message: Message) => {
     let responseText = "";
     let confidenceValue = null;
@@ -932,7 +1002,7 @@ export function ChatDemoInterface({
           !(
             message.intent?.includes("greeting") ||
             message.intent?.includes("closing") ||
-            (message.intent?.includes("out_of_domain") && !message.excerpts)
+            message.intent?.includes("out_of_domain")
           ) && (
             <div className="text-xs text-gray-400 mt-1">
               {renderConfidenceIndicator(message)}
@@ -1174,6 +1244,105 @@ export function ChatDemoInterface({
       )}
 
       {renderWrapUpDialog()}
+      <Dialog
+        open={feedbackModal.isOpen}
+        onOpenChange={(open) =>
+          setFeedbackModal((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <DialogContent className="sm:max-w-[20rem]">
+          <DialogHeader>
+            <DialogTitle>
+              {feedbackModal.currentFeedback === "positive"
+                ? "Positive"
+                : "Negative"}{" "}
+              Feedback
+            </DialogTitle>
+            <DialogDescription>
+              {feedbackModal.existingFeedbackId
+                ? "Edit your feedback for this response."
+                : "Help us improve by sharing your thoughts about this response."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">Rating:</span>
+              <div className="flex space-x-1">
+                <Button
+                  variant={
+                    feedbackModal.currentFeedback === "positive"
+                      ? "default"
+                      : "outline"
+                  }
+                  size="sm"
+                  onClick={() =>
+                    setFeedbackModal((prev) => ({
+                      ...prev,
+                      currentFeedback: "positive",
+                    }))
+                  }
+                  className="h-8"
+                >
+                  <ThumbsUp className="w-3 h-3 mr-1" />
+                  Helpful
+                </Button>
+                <Button
+                  variant={
+                    feedbackModal.currentFeedback === "negative"
+                      ? "default"
+                      : "outline"
+                  }
+                  size="sm"
+                  onClick={() =>
+                    setFeedbackModal((prev) => ({
+                      ...prev,
+                      currentFeedback: "negative",
+                    }))
+                  }
+                  className="h-8"
+                >
+                  <ThumbsDown className="w-3 h-3 mr-1" />
+                  Not Helpful
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Additional Comments (Optional)
+              </label>
+              <Textarea
+                placeholder="Tell us more about your experience with this response..."
+                value={feedbackModal.textFeedback}
+                onChange={(e) =>
+                  setFeedbackModal((prev) => ({
+                    ...prev,
+                    textFeedback: e.target.value,
+                  }))
+                }
+                className="min-h-[80px]"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setFeedbackModal((prev) => ({ ...prev, isOpen: false }))
+              }
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleFeedbackSubmit}>
+              {feedbackModal.existingFeedbackId
+                ? "Update Feedback"
+                : "Submit Feedback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

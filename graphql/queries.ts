@@ -112,6 +112,7 @@ export const askQuestionQuery = /* GraphQL */ `
       success
       response
       confidence
+      session_id
       excerpts {
         text
         source_id
