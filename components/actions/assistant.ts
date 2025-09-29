@@ -7,6 +7,7 @@ import {
   UpdateItemCommand,
   DeleteItemCommand,
   QueryCommand,
+  ScanCommand,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 import { v4 as uuidv4 } from "uuid";
@@ -170,4 +171,67 @@ export async function fetchAllKnowledgeSources(
     items: result.Items?.map((item) => unmarshall(item)) || [],
     lastEvaluatedKey: result.LastEvaluatedKey || null,
   };
+}
+
+export async function updateLeadByUserId(
+  userId: string,
+  firstName: string,
+  lastName: string,
+  phone: string,
+  email: string
+) {
+  try {
+    console.log("Updating lead for:", userId);
+
+    // Step 1: Find the item with this user_id using GSI
+    const queryResult = await client.send(
+      new QueryCommand({
+        TableName: process.env.HW_AWS_S3_DYNAMODB_LEADS_TABLE_NAME,
+        IndexName: "user_id-timestamp-index", // 👈 your GSI
+        KeyConditionExpression: "user_id = :uid",
+        ExpressionAttributeValues: {
+          ":uid": { S: userId }, // low-level needs {S: "value"}
+        },
+        Limit: 1,
+      })
+    );
+    console.log(queryResult);
+    if (!queryResult.Items || queryResult.Items.length === 0) {
+      throw new Error(`No lead found with user_id = ${userId}`);
+    }
+
+    const item = unmarshall(queryResult.Items[0]);
+
+    // Step 2: Update the record by PK + SK
+    const updateResult = await client.send(
+      new UpdateItemCommand({
+        TableName: process.env.HW_AWS_S3_DYNAMODB_LEADS_TABLE_NAME,
+        Key: {
+          leads: { S: item.leads }, // partition key
+          timestamp: { S: item.timestamp }, // sort key
+        },
+        UpdateExpression:
+          "SET #fn = :firstName, #ln = :lastName, #ph = :phone, #em = :email",
+        ExpressionAttributeNames: {
+          "#fn": "firstName",
+          "#ln": "lastName",
+          "#ph": "phone",
+          "#em": "email",
+        },
+        ExpressionAttributeValues: {
+          ":firstName": { S: firstName },
+          ":lastName": { S: lastName },
+          ":phone": { S: phone },
+          ":email": { S: email },
+        },
+        ReturnValues: "ALL_NEW",
+      })
+    );
+
+    console.log("Update success:", updateResult.Attributes);
+    return updateResult.Attributes ? unmarshall(updateResult.Attributes) : null;
+  } catch (error) {
+    console.error("Error updating lead by user_id:", error);
+    throw error;
+  }
 }

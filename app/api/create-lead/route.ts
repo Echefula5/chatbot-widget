@@ -3,15 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { first_name, last_name, email, company } = body;
+    const { first_name, last_name, email, phone } = body;
 
     // Basic validation
-    if (!first_name || !last_name || !email || !company) {
+    if (!first_name || !last_name || !email || !phone) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            "Missing required fields: first_name, last_name, email, company",
+          error: "Missing required fields: first_name, last_name, email, phone",
         },
         { status: 400 }
       );
@@ -19,20 +18,20 @@ export async function POST(request: NextRequest) {
 
     // Prepare form data for Salesforce (no reCAPTCHA needed)
     const formData = new URLSearchParams();
-    formData.append("oid", "00Dd3000004Ai2H");
+    formData.append("oid", process.env.HW_SALESFORCE_OOID!);
     formData.append("first_name", first_name);
     formData.append("last_name", last_name);
     formData.append("email", email);
-    formData.append("company", company);
+    formData.append("phone", phone);
 
     // Optional fields
 
     // Enable debug mode
     formData.append("debug", "1");
-    formData.append("debugEmail", "echendu0803@gmail.com");
+    formData.append("debugEmail", process.env.HW_DEBUG_EMAIL!);
 
     // Set return URL (from your original form)
-    formData.append("retURL", "https://www.metrohealthlink.com/blog");
+    formData.append("retURL", "https://www.supportagent.per-ceptive.ai/");
 
     console.log("📤 Submitting to Salesforce:");
     console.log("Form data:", formData.toString());
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Lead submitted to Salesforce successfully",
-      leadData: { first_name, last_name, email, company },
+      leadData: { first_name, last_name, email, phone },
       debugInfo: {
         status: salesforceResponse.status,
         message: "Check your email for debug confirmation",

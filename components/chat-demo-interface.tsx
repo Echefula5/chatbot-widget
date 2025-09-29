@@ -8,6 +8,7 @@ import { getCookie, setCookie } from "cookies-next/client";
 import {
   handleupdateWidgetFeedback,
   handleWidgetFeedback,
+  updateLeadByUserId,
 } from "./actions/assistant";
 import {
   Accordion,
@@ -211,6 +212,9 @@ export function ChatDemoInterface({
   const [sending, setSending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [conversationId, setConversationId] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [feedback, setFeedback] = useState<FeedbackItem[]>([]); // <-- Define type
   // Salesforce Integration State
@@ -251,6 +255,7 @@ export function ChatDemoInterface({
       localStorage.setItem("metro_link_messages", JSON.stringify({ messages }));
     }
   }, [messages]);
+  console.log(messages);
   useEffect(() => {
     const stored = localStorage.getItem("metro_link_messages");
     const summaryData = JSON.parse(stored || "{}");
@@ -370,30 +375,61 @@ export function ChatDemoInterface({
       originalQuery,
     });
   };
-  // const submitToSalesforce = async (wrapUpData: ChatWrapUpData) => {
-  //   try {
-  //     // This would be your actual Salesforce integration endpoint
-  //     const response = await fetch("/api/salesforce/create-lead", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify(wrapUpData),
-  //     });
 
-  //     if (!response.ok) {
-  //       throw new Error("Failed to submit to Salesforce");
-  //     }
+  const createSalesforceCase = async () => {
+    console.log("test");
+    const { firstName, lastName, email, phone } = contactInfo;
+    const response = await fetch("/api/create-case", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: firstName + " " + lastName,
+        phone,
+        email,
+        subject: preferredTopic,
+      }),
+    });
 
-  //     const result = await response.json();
-  //     console.log("Successfully submitted to Salesforce:", result);
+    if (!response.ok) {
+      throw new Error("Failed to submit to Salesforce");
+    }
 
-  //     return result;
-  //   } catch (error) {
-  //     console.error("Error submitting to Salesforce:", error);
-  //     throw error;
-  //   }
-  // };
+    const result = await response.json();
+  };
+  const submitToSalesforce = async () => {
+    const { firstName, lastName, email, phone } = contactInfo;
+    try {
+      // This would be your actual Salesforce integration endpoint
+      const response = await fetch("/api/create-lead", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit to Salesforce");
+      }
+
+      const result = await response.json();
+      const userId = `user_${messages[0]?.session_id}`;
+      updateLeadByUserId(userId, firstName, lastName, phone, email);
+      console.log("Successfully submitted to Salesforce:", result);
+
+      return result;
+    } catch (error) {
+      console.error("Error submitting to Salesforce:", error);
+      throw error;
+    }
+  };
   Amplify.configure({
     API: {
       GraphQL: {
@@ -404,10 +440,24 @@ export function ChatDemoInterface({
       },
     },
   });
+  console.log(contactInfo);
   const handleWrapUpComplete = async () => {
     const metrics = calculateMetrics();
     const citations = extractCitations();
-
+    const userId = `user_${messages[0]?.session_id}`;
+    const sessionId = messages[0]?.session_id;
+    const feedback = userFeedback.comment;
+    await handleWidgetFeedback(
+      sessionId,
+      userId,
+      true,
+      sessionId,
+      "session",
+      feedback,
+      rating,
+      null,
+      null
+    );
     const wrapUpData: ChatWrapUpData = {
       conversationId: sessionId,
       endedAt: new Date().toISOString(),
@@ -425,9 +475,8 @@ export function ChatDemoInterface({
     };
 
     try {
-      // await submitToSalesforce(wrapUpData);
+      await submitToSalesforce();
       setShowWrapUp(false);
-      setShowRating(true); // Show final rating/thank you
     } catch (error) {
       console.error("Failed to complete wrap-up:", error);
       // Handle error appropriately
@@ -523,7 +572,25 @@ export function ChatDemoInterface({
                     This conversation was helpful
                   </label>
                 </div>
-
+                <div className="flex justify-center space-x-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoveredRating(star)}
+                      onMouseLeave={() => setHoveredRating(0)}
+                      className="p-1 transition-colors hover:scale-110"
+                    >
+                      <Star
+                        className={`w-8 h-8 transition-colors ${
+                          star <= (hoveredRating || rating)
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-muted-foreground hover:text-yellow-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
                 <Textarea
                   placeholder="Any additional feedback? (optional)"
                   value={userFeedback.comment}
@@ -745,6 +812,134 @@ export function ChatDemoInterface({
     );
   };
 
+  const renderneedsHandsoffDialog = () => {
+    return (
+      <Dialog open={needsHandoff} onOpenChange={setNeedsHandoff}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Support Request</DialogTitle>
+            <DialogDescription>
+              Thanks for using our chat assistant. Please provide a few details
+              so our support team can follow up with you.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Email *</label>
+                <Input
+                  type="email"
+                  value={contactInfo.email}
+                  onChange={(e) =>
+                    setContactInfo((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
+                  }
+                  placeholder="your.email@example.com"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-sm font-medium">First Name</label>
+                  <Input
+                    value={contactInfo.firstName}
+                    onChange={(e) =>
+                      setContactInfo((prev) => ({
+                        ...prev,
+                        firstName: e.target.value,
+                      }))
+                    }
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Last Name</label>
+                  <Input
+                    value={contactInfo.lastName}
+                    onChange={(e) =>
+                      setContactInfo((prev) => ({
+                        ...prev,
+                        lastName: e.target.value,
+                      }))
+                    }
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Phone (optional)</label>
+                <Input
+                  type="tel"
+                  value={contactInfo.phone}
+                  onChange={(e) =>
+                    setContactInfo((prev) => ({
+                      ...prev,
+                      phone: e.target.value,
+                    }))
+                  }
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+
+              {needsHandoff && (
+                <div>
+                  <label className="text-sm font-medium">Preferred Topic</label>
+                  <select
+                    value={preferredTopic}
+                    onChange={(e) => setPreferredTopic(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  >
+                    <option value="">Select a topic</option>
+                    <option value="eligibility">Eligibility</option>
+                    <option value="billing">Billing</option>
+                    <option value="plan_selection">Plan Selection</option>
+                    <option value="technical">Technical</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-start space-x-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="consent"
+                  checked={contactInfo.consent}
+                  onChange={(e) =>
+                    setContactInfo((prev) => ({
+                      ...prev,
+                      consent: e.target.checked,
+                    }))
+                  }
+                  className="rounded mt-1"
+                />
+                <label htmlFor="consent" className="text-xs text-gray-600">
+                  I agree to be contacted about this inquiry.
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNeedsHandoff(false)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => createSalesforceCase()}
+              disabled={!contactInfo.email || !contactInfo.consent}
+            >
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   // Add end chat button to your existing UI
   const renderEndChatButton = () => (
     <div>
@@ -809,13 +1004,7 @@ export function ChatDemoInterface({
 
     try {
       setIsTyping(true);
-      const data = {
-        first_name: "Eche",
-        last_name: "Ndukwe",
-        email: "eche@nimbussp.com",
-        company: "Nimbus Solutions Provider",
-      };
-      // submitLead(data);
+
       const is_new = messages.length === 0 ? true : false;
       const result = await client.graphql({
         query: askQuestionQuery,
@@ -829,6 +1018,7 @@ export function ChatDemoInterface({
           },
         },
       });
+      console.log(result);
       if ("data" in result && result.data?.askQuestion?.success) {
         setIsTyping(false);
         const formatData = result.data.askQuestion.excerpts;
@@ -1052,6 +1242,22 @@ export function ChatDemoInterface({
                       }`}
                     >
                       {renderMessageContent(message)}
+                      {message.isBot &&
+                        !message.citations.source_url &&
+                        !(
+                          message.intent?.includes("greeting") ||
+                          message.intent?.includes("closing")
+                        ) && (
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setNeedsHandoff(true);
+                            }}
+                            className="mt-4 bg-white text-blue-600 border border-blue-600 hover:bg-blue-50 hover:border-blue-700 hover:text-blue-700 transition-colors rounded-md shadow-sm"
+                          >
+                            Connect with Support
+                          </Button>
+                        )}
                     </div>
                   </div>
                   {message.isBot && message.citations.source_url && (
@@ -1244,6 +1450,7 @@ export function ChatDemoInterface({
       )}
 
       {renderWrapUpDialog()}
+      {renderneedsHandsoffDialog()}
       <Dialog
         open={feedbackModal.isOpen}
         onOpenChange={(open) =>
