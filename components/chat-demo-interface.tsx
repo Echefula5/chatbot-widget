@@ -377,7 +377,6 @@ export function ChatDemoInterface({
   };
 
   const createSalesforceCase = async () => {
-    console.log("test");
     const { firstName, lastName, email, phone } = contactInfo;
     const response = await fetch("/api/create-case", {
       method: "POST",
@@ -397,6 +396,16 @@ export function ChatDemoInterface({
     }
 
     const result = await response.json();
+    if (result.success) {
+      setNeedsHandoff(false);
+      setContactInfo({
+        email: "",
+        firstName: "",
+        lastName: "",
+        phone: "",
+        consent: false,
+      });
+    }
   };
   const submitToSalesforce = async () => {
     const { firstName, lastName, email, phone } = contactInfo;
