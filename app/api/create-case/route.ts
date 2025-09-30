@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 // You'll need these for Salesforce REST API
 const SALESFORCE_LOGIN_URL =
   "https://login.salesforce.com/services/oauth2/token";
-const CLIENT_ID = process.env.SALESFORCE_CLIENT_ID;
-const CLIENT_SECRET = process.env.SALESFORCE_CLIENT_SECRET;
-const USERNAME = process.env.SALESFORCE_USERNAME;
-const PASSWORD = process.env.SALESFORCE_PASSWORD; // + Security Token
+const CLIENT_ID = process.env.HW_SALESFORCE_CLIENT_ID;
+const CLIENT_SECRET = process.env.HW_SALESFORCE_CLIENT_SECRET;
+const USERNAME = process.env.HW_SALESFORCE_USERNAME;
+const PASSWORD = process.env.HW_SALESFORCE_PASSWORD; // + Security Token
 
 async function getSalesforceAccessToken() {
   // Validate environment variables
