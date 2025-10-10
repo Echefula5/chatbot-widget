@@ -410,13 +410,18 @@ export function ChatDemoInterface({
   const submitToSalesforce = async () => {
     const { firstName, lastName, email, phone } = contactInfo;
     try {
-      // This would be your actual Salesforce integration endpoint
-      const response = await fetch("/api/create-lead", {
+      // This would be your actual Sconst userId =
+      const user_id =
+        messages?.length > 0
+          ? `user_${messages[0]?.session_id}`
+          : `user_${sessionId}`;
+      const response = await fetch("/api/update-lead", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          user_id: user_id,
           first_name: firstName,
           last_name: lastName,
           phone,
@@ -993,11 +998,15 @@ export function ChatDemoInterface({
   const handleSendMessage = async (messageText?: string) => {
     const text = messageText || input.trim();
     if (!text || sending) return;
-    const userId = `user_${sessionId}`;
 
     setSending(true);
     const existingSessionId =
       messages?.length > 0 ? messages[0]?.session_id : sessionId;
+    const userId =
+      messages?.length > 0
+        ? `user_${messages[0]?.session_id}`
+        : `user_${sessionId}`;
+
     setInput(""); // Clear input immediately for better UX
     const userMessage: Message = {
       id: uuidv4(),
